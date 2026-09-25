@@ -327,8 +327,21 @@
         "unmatchedForeground": "textDisabled",
         "hoveredBackground": "highlight",
         "selectionInactiveBackground": "accentSubtle",
-        "selectionInactiveForeground": "foreground"
+        "selectionInactiveForeground": "foreground",
+        "Reference.foreground": "textSecondary"
       },
+      "Log.Graph": {
+        "saturation": 0.6,
+        "brightness": 0.85
+      },
+      "GitLog": {
+        "headIconColor": "yellow5",
+        "localBranchIconColor": "green5",
+        "remoteBranchIconColor": "magenta5",
+        "tagIconColor": "cyan5",
+        "otherIconColor": "textMuted"
+      },
+      "RefLabel.foreground": "foreground",
       "FileHistory.Commit.selectedBranchBackground": "accentSubtle"
     },
     "WelcomeScreen.": {

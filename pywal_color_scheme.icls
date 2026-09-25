@@ -667,19 +667,19 @@
     </option>
     <option name="DIFF_DELETED">
       <value>
-        <option name="BACKGROUND" value="{red2}"/>
+        <option name="BACKGROUND" value="{red1}"/>
         <option name="ERROR_STRIPE_COLOR" value="{red2}"/>
       </value>
     </option>
     <option name="DIFF_INSERTED">
       <value>
-        <option name="BACKGROUND" value="{green2}"/>
+        <option name="BACKGROUND" value="{green1}"/>
         <option name="ERROR_STRIPE_COLOR" value="{green2}"/>
       </value>
     </option>
     <option name="DIFF_MODIFIED">
       <value>
-        <option name="BACKGROUND" value="{cyan2}"/>
+        <option name="BACKGROUND" value="{cyan1}"/>
         <option name="ERROR_STRIPE_COLOR" value="{cyan2}"/>
       </value>
     </option>
