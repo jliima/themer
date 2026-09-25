@@ -98,8 +98,8 @@ The application script will:
 
 ### Editor colors
 Edit `pywal_color_scheme.icls`. Variables like `{syntaxKeyword}`, `{blue5}`, `{green3}` etc. are
-substituted with actual hex values at apply-time. See [`.github/theme-variables.md`](.github/theme-variables.md)
-for the full variable reference.
+substituted with actual hex values at apply-time. See `~/.cache/wal/colors.json` for the available
+variables.
 
 ### UI colors
 Edit `theme/ui-mapping.json`. This file maps IntelliJ UI key paths to palette variable names.

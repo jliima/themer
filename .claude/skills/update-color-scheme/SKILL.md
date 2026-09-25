@@ -1,3 +1,8 @@
+---
+name: update-color-scheme
+description: Apply a hand-edited or exported .icls file back into pywal_color_scheme.icls using {varName} placeholders. Use when the user tweaked editor colors in the IDE and wants them in the template.
+---
+
 # Update Color Scheme Template
 
 Apply hand-edited ICLS color changes back into the `pywal_color_scheme.icls` template.

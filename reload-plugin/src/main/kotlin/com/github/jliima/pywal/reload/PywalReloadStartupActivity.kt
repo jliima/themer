@@ -11,5 +11,10 @@ class PywalReloadStartupActivity : ProjectActivity {
         } catch (e: Exception) {
             thisLogger().warn("Pywal reload server failed to start: ${e.message}")
         }
+        try {
+            CopilotColorPatcher.apply()
+        } catch (e: Exception) {
+            thisLogger().warn("Copilot color patching failed: ${e.message}")
+        }
     }
 }

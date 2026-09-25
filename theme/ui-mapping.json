@@ -116,6 +116,217 @@
       "inactiveColoredFileBackground": "background",
       "borderColor": "border"
     },
+    "Copilot": {
+      "Nes": {
+        "popupBackground": "overlay",
+        "popupInfoForeground": "textMuted",
+        "lineNumberBackground": "accentSubtle",
+        "codeForeground": "foreground",
+        "addedBackground": "green1",
+        "addedForeground": "green5",
+        "deletedBackground": "red1",
+        "deletedForeground": "red5"
+      },
+      "Palette": {
+        "grey1": "black2",
+        "grey2": "background",
+        "grey3": "grey1",
+        "grey4": "grey2",
+        "grey5": "grey3",
+        "grey6": "grey4",
+        "grey7": "grey5",
+        "grey8": "textMuted",
+        "grey9": "textSecondary",
+        "grey10": "white3",
+        "grey11": "white4",
+        "grey12": "foreground",
+        "blue1": "blue1",
+        "blue2": "blue2",
+        "blue3": "blue2",
+        "blue4": "blue3",
+        "blue5": "blue4",
+        "blue6": "blue4",
+        "blue8": "blue5",
+        "blue9": "blue5",
+        "red1": "red1",
+        "red2": "red2",
+        "red4": "red3",
+        "red5": "red4",
+        "red6": "red5",
+        "yellow1": "yellow1",
+        "yellow2": "yellow2",
+        "yellow4": "yellow3",
+        "yellow6": "yellow4",
+        "yellow7": "yellow5",
+        "green1": "green1",
+        "green3": "green3",
+        "green5": "green4",
+        "green6": "green5",
+        "orange1": "yellow1",
+        "orange2": "yellow2",
+        "orange3": "yellow3",
+        "orange4": "yellow4",
+        "orange5": "yellow5",
+        "orange6": "yellow5",
+        "orange7": "yellow5",
+        "Background": {
+          "chatWindow": "background",
+          "chatBox": "surface",
+          "editorLine": "blue1"
+        },
+        "Diff": {
+          "bgAdded": "green1",
+          "bgRemoved": "red1"
+        },
+        "Icon": {
+          "default": "textSecondary",
+          "bgHover": "highlight",
+          "bgPressed": "highlightActive",
+          "accent": "accent"
+        },
+        "grey13": "white5",
+        "grey14": "foreground"
+      },
+      "Style": {
+        "BLUE": "borderFocus",
+        "GREY": "border",
+        "GREY_1": "black2",
+        "GREY_2": "background",
+        "GREY_3": "grey1",
+        "GREY_4": "grey2",
+        "GREY_5": "grey3",
+        "GREY_6": "grey4",
+        "GREY_7": "grey5",
+        "GREY_8": "textMuted",
+        "GREY_9": "textSecondary",
+        "GREY_10": "white3",
+        "GREY_11": "white4",
+        "GREY_12": "foreground",
+        "GREY_13": "white5",
+        "GREY_14": "foreground",
+        "MESSAGE_TOOLBAR_HOVER_BACKGROUND": "highlight",
+        "TODO_ACTIVE_TEXT": "foreground",
+        "TODO_MUTED_TEXT": "textMuted",
+        "DISABLED_TEXT": "textDisabled",
+        "SELECTED_CONVERSATION": "selection",
+        "MultiUIGrey3": "overlay",
+        "linkText": "textLink",
+        "FollowUp": "textLink",
+        "Separators": "border",
+        "modelPolicyNotificationBorder": "border",
+        "ErrorMessageBackground": "red1",
+        "ErrorBackground": "red1",
+        "ErrorBorder": "red2",
+        "InputTokenBackground": "blue1",
+        "InputTokenColor": "blue5",
+        "AddedLinesColor": "green5",
+        "DeletedLinesColor": "red5",
+        "InputArea": {
+          "Background": "surface",
+          "ToolBarBackground": "surface",
+          "ReEditBackground": "surface",
+          "FocusedBorder": "borderFocus",
+          "UnfocusedBorder": "border",
+          "DefaultDarkSelectionBackground": "selection",
+          "ReEditDarkSelectionBackground": "selection",
+          "ActionButton": {
+            "Inactive": "textSecondary",
+            "Active": "foreground",
+            "Hover": "foreground",
+            "HoverBackground": "highlight",
+            "GroupHoverBackground": "highlightActive"
+          },
+          "References": {
+            "ActionIconForeground": "textSecondary",
+            "Background": "overlay",
+            "Border": "border",
+            "HoverBorder": "grey5",
+            "CurrentFileHoverBackground": "highlight",
+            "CloseButtonHover": "highlightActive"
+          },
+          "ContextUsage": {
+            "NormalColor": "textMuted",
+            "WarningColor": "warning",
+            "FreeColor": "grey4",
+            "UsedColor": "accent",
+            "OutputReservedColor": "accentHover"
+          }
+        },
+        "InputWorkingSet": {
+          "Background": "overlay",
+          "TranslucentBackground": "overlay",
+          "ItemHoverBackground": "highlight",
+          "DiscardAllButton": {
+            "Foreground": "foreground"
+          },
+          "ItemActionButton": {
+            "DefaultForeground": "textSecondary",
+            "HoveredForeground": "foreground"
+          },
+          "CollapseToggleButton": {
+            "HoveredForeground": "foreground"
+          }
+        },
+        "CodingAgent": {
+          "PanelBackground": "background",
+          "PanelBorder": "border",
+          "HeaderBackground": "surface",
+          "TitleForeground": "foreground",
+          "DescriptionForeground": "textMuted",
+          "LinkForeground": "textLink"
+        },
+        "HoverableComboBox": {
+          "HoverBackground": "highlight"
+        },
+        "InlineChat": {
+          "background": "surface",
+          "border": "border"
+        }
+      },
+      "Chat": {
+        "UserBubble": {
+          "Dark": "blue2",
+          "DarkHover": "blue3"
+        },
+        "Chip": {
+          "BackgroundDark": "overlay",
+          "HoverBackgroundDark": "highlight",
+          "BorderDark": "border"
+        },
+        "ToolCall": {
+          "BorderDark": "border",
+          "SuccessDark": "success",
+          "ErrorDark": "error",
+          "SecondaryTextDark": "textMuted",
+          "DetailsSeparatorDark": "border",
+          "DetailsHeaderBackgroundDark": "overlay",
+          "RunCommandSummaryTextDark": "warning",
+          "RunCommandTextDark": "foreground",
+          "DetailsStatusMutedDark": "textSecondary",
+          "DetailsStatusSuccessDark": "accent",
+          "DetailsStatusErrorDark": "error",
+          "CardBackgroundDark": "surface",
+          "PrimaryButtonDark": "blue3",
+          "PrimaryButtonBorderDark": "blue4"
+        },
+        "UserInput": {
+          "ChoiceSelectedBgDark": "selection",
+          "ChoiceLabelBgDark": "grey3",
+          "TextPrimaryDark": "foreground",
+          "TextSecondaryDark": "textMuted",
+          "InputBackgroundDark": "surface",
+          "IconButtonHoverBgDark": "highlight"
+        },
+        "ScrollToBottom": {
+          "BackgroundDark": "overlay",
+          "BorderDark": "border"
+        },
+        "ErrorBanner": {
+          "BackgroundDark": "red1",
+          "BorderDark": "red3"
+        }
+      }
+    },
     "FileColor": {
       "Gray": "grey1",
       "Rose": "red1",
