@@ -16,6 +16,7 @@ description = "Warm greys, orange accent"
 version = "1.0.0"
 variants = ["dark", "light"]       # any of dark, light; one is fine
 default-variant = "dark"
+wallpaper = "~/Pictures/ember.png"  # optional; passed on in the pywal export, where run-pywal.py sets it
 
 [fonts]                            # optional, see defaults.toml
 sans = "Inter"
@@ -117,5 +118,5 @@ corner radii from `radius`, writes aliases where the design system used them, an
 
 ## Sharing a theme
 
-Zip the folder and `themer install theme.zip` on the other machine. A theme never contains paths or commands; what
-gets written where is decided by `targets.toml` on the machine that applies it.
+Zip the folder and `themer install theme.zip` on the other machine. A theme never contains commands, and no paths
+apart from an optional wallpaper; what gets written where is decided by `targets.toml` on the machine that applies it.
