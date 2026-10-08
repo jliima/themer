@@ -1411,20 +1411,35 @@ def cmd_stow(args):
 
 
 def cmd_screens(args):
-  print("Recommended Plasma scale per screen (logical px look the same at each viewing distance):")
-  print("  27\" 2560x1440 desk    100%   2560x1440  comfortable")
-  print("  32\" 3840x2160 dock    150%   2560x1440  comfortable")
-  print("  14\" 1920x1200 T14     125%   1536x960   compact\n")
-  if shutil.which("kscreen-doctor"):
-    res = subprocess.run(["kscreen-doctor", "-o"], capture_output=True, text=True)
-    names = re.findall(r"Output:\s+\d+\s+(\S+)", re.sub(r"\x1b\[[0-9;]*m", "", res.stdout))
-    if names:
-      print("Your outputs: " + ", ".join(names))
-      print("Set a scale with, for example:")
-      for n in names:
-        print(f"  kscreen-doctor output.{n}.scale.1.5")
-  else:
-    print("kscreen-doctor not found; set scales in System Settings > Display Configuration.")
+  """Lists the outputs with their scale and logical size. `[screens]` in settings.toml maps an output name to the
+  scale you want (DP-1 = 1.5); the kscreen-doctor commands for the ones that differ are printed, or run with --apply."""
+  if not shutil.which("kscreen-doctor"):
+    die("kscreen-doctor not found; set scales in System Settings > Display Configuration")
+  res = subprocess.run(["kscreen-doctor", "-j"], capture_output=True, text=True)
+  try:
+    outputs = json.loads(res.stdout)["outputs"]
+  except (json.JSONDecodeError, KeyError):
+    die("could not read the outputs from kscreen-doctor -j")
+  wanted = settings().get("screens", {})
+  todo = []
+  for o in outputs:
+    w, h, cur = o["size"]["width"], o["size"]["height"], float(o.get("scale", 1))
+    state = "" if o.get("enabled", True) else "  (disabled)"
+    print(f"{o['name']:<10} {w}x{h}  scale {cur:g}  logical {round(w / cur)}x{round(h / cur)}{state}")
+    want = wanted.get(o["name"])
+    if want is not None and abs(float(want) - cur) > 1e-6:
+      todo.append((o["name"], float(want)))
+  if not wanted:
+    print("\nSet the scale you want per output in settings.toml, then run this again:\n\n  [screens]\n  DP-1 = 1.5")
+  for name, scale in todo:
+    cmd = ["kscreen-doctor", f"output.{name}.scale.{scale:g}"]
+    if args.apply:
+      print(f"\n$ {' '.join(cmd)}")
+      subprocess.run(cmd, stderr=subprocess.DEVNULL)
+    else:
+      print(f"\n  {' '.join(cmd)}")
+  if todo and not args.apply:
+    print("\n--apply runs these.")
 
 
 def cmd_doctor(args):
@@ -1551,7 +1566,8 @@ def main():
   p.add_argument("--dry-run", action="store_true")
   p.set_defaults(fn=cmd_stow)
 
-  p = sub.add_parser("screens", help="recommended scale per screen")
+  p = sub.add_parser("screens", help="outputs and their scale; sets the ones listed under [screens] in settings.toml")
+  p.add_argument("--apply", action="store_true", help="run the kscreen-doctor commands instead of printing them")
   p.set_defaults(fn=cmd_screens)
 
   p = sub.add_parser("doctor", help="check what Themer needs")

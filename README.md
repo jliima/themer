@@ -104,7 +104,7 @@ color schemes and profiles even before Themer runs there; `themer apply` then do
 | `themer remove ID` | Remove an installed theme. |
 | `themer undo` | Restore the files the last apply changed (15 runs of backups in `~/.local/state/themer/backups`). |
 | `themer stow` | Run the configured stow command (dotfiles mode). |
-| `themer screens` | Recommended Plasma scale for each screen, with `kscreen-doctor` commands. |
+| `themer screens [--apply]` | Outputs with their scale; sets the scales listed under `[screens]` in `settings.toml`. |
 
 ## How it fits together
 
@@ -250,6 +250,14 @@ dotfiles mode is on. Merged files keep every key Themer does not set. Every over
 
 ## Screens
 
-Plasma scales each display separately. These make one logical pixel look the same size everywhere: 27" 1440p at
-100%, 32" 4K at 150% (both end up with a 2560x1440 workspace), 14" T14 at 125%. Keep fonts in points; the scale
-does the rest. `themer screens` prints the commands.
+Plasma scales each display separately. `themer screens` lists your outputs with their scale and the logical size that
+results. To keep the scales you chose, name them in `settings.toml` and let Themer set them:
+
+```toml
+[screens]
+DP-1 = 1.0
+HDMI-A-1 = 1.5
+```
+
+`themer screens` prints the `kscreen-doctor` commands for the outputs that differ; `themer screens --apply` runs
+them. Keep fonts in points; the scale does the rest.
