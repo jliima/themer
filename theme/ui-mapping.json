@@ -543,7 +543,23 @@
       },
       "Log.Graph": {
         "saturation": 0.6,
-        "brightness": 0.85
+        "brightness": 0.85,
+        "color1": "blue5",
+        "color2": "green5",
+        "color3": "violet5",
+        "color4": "orange5",
+        "color5": "cyan5",
+        "color6": "magenta5",
+        "color7": "yellow5",
+        "color8": "red5",
+        "color9": "blue4",
+        "color10": "green4",
+        "color11": "violet4",
+        "color12": "orange4",
+        "color13": "cyan4",
+        "color14": "magenta4",
+        "color15": "yellow4",
+        "color16": "red4"
       },
       "GitLog": {
         "headIconColor": "yellow5",

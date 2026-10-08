@@ -16,5 +16,10 @@ class PywalReloadStartupActivity : ProjectActivity {
         } catch (e: Exception) {
             thisLogger().warn("Copilot color patching failed: ${e.message}")
         }
+        try {
+            VcsLogGraphColorPatcher.apply()
+        } catch (e: Exception) {
+            thisLogger().warn("VCS log graph color patching failed: ${e.message}")
+        }
     }
 }

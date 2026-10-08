@@ -40,6 +40,8 @@ All names come from `colors.json`: semantic `special.*` keys (`background`, `sur
 - `ui-mapping.json` values are variable names, never hex. Nested objects join with `.`; numbers and booleans pass
   through (e.g. `VersionControl.Log.Graph.saturation`).
 - Prefer semantic names over ramps; use ramps for VCS, diff, file colors.
+- VCS log graph branch colors: `VersionControl.Log.Graph.color1..N`, handed out in first-paint order by
+  `VcsLogGraphColorPatcher.kt` (the IDE hashes branch names otherwise). Themer's eight hues at level 5, then 4.
 - VCS file status: added `green5`, modified `blue5`, deleted `red5`, conflict `yellow5`, ignored `textDisabled`.
 - Background tints (diff lines, file colors, banners): ramp level 1-2 so text stays readable.
 - New variables go into `parecolors.json` under `special`; only add universally useful ones.
