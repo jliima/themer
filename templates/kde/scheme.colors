@@ -103,8 +103,8 @@ ForegroundPositive={{ success | rgb }}
 ForegroundVisited={{ violet | rgb }}
 
 [Colors:View]
-BackgroundAlternate={{ bg-sunken | mix(surface, 0.35) | rgb }}
-BackgroundNormal={{ bg-sunken | rgb }}
+BackgroundAlternate={{ bg | mix(surface, 0.35) | rgb }}
+BackgroundNormal={{ bg | rgb }}
 DecorationFocus={{ focus-ring | rgb }}
 DecorationHover={{ accent | rgb }}
 ForegroundActive={{ accent | rgb }}
@@ -118,7 +118,7 @@ ForegroundVisited={{ violet | rgb }}
 
 [Colors:Window]
 BackgroundAlternate={{ surface | rgb }}
-BackgroundNormal={{ bg | rgb }}
+BackgroundNormal={{ bg-sunken | rgb }}
 DecorationFocus={{ focus-ring | rgb }}
 DecorationHover={{ accent | rgb }}
 ForegroundActive={{ accent | rgb }}

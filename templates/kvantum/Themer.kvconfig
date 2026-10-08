@@ -73,9 +73,9 @@ middle_click_scroll=false
 opaque=kaffeine,kmplayer,subtitlecomposer,kdenlive,vlc,smplayer,smplayer2,avidemux,kamoso,QtCreator,VirtualBox,VirtualBoxVM,trojita,dragon,digikam,lyx
 
 [GeneralColors]
-window.color={{ bg }}
-base.color={{ bg-sunken }}
-alt.base.color={{ bg }}
+window.color={{ bg-sunken }}
+base.color={{ bg }}
+alt.base.color={{ bg | mix(surface, 0.35) }}
 button.color={{ surface-hover }}
 light.color={{ surface-active }}
 mid.light.color={{ surface-raised }}

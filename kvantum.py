@@ -317,11 +317,10 @@ def build(t, n):
   frame_element(svg, "splitter", 1, {"normal": (None, None), "focused": (t["line-strong"], None),
                                      "pressed": (t["accent"], None)}, states=("normal", "focused", "pressed"))
 
-  # Headers of item views: the view ground, a hairline under it and between sections.
+  # Headers of item views: the view ground and a hairline under it, no lines between sections (like Pare's List).
   line_frames(svg, "header", 2, {s: t["line"] for s in STATES}, sides=("bottom",), states=STATES, width=1,
               interior=None)
-  x, y = svg.place(1, 20)
-  svg.group("header-separator", x, y, 1, 20, _fill(t["line"], _rect(x, y + 4, 1, 12)))
+  empty(svg, "header-separator")
 
   # Scroll bars: a thin pill on no groove.
   sw = n["scroll-width"] / 2

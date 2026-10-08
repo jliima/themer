@@ -43,6 +43,8 @@ danger = "{red}"
 danger-soft = "{red-soft}"
 info = "{cyan}"
 info-soft = "{cyan-soft}"
+# Selected list rows and places, like the design system's List and sidebar (text stays text).
+kde-selection = "{accent-soft}"
 syntax-keyword = "{green}"
 syntax-string = "{magenta}"
 syntax-escape = "{cyan}"
