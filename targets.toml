@@ -1,0 +1,192 @@
+# What `themer apply` writes, and where. Targets are the same for every theme.
+#
+# Each [[target]] has:
+#   name      label shown in output
+#   group     used by `themer apply --only kde,firefox`
+#   template  file under templates/; ~/.config/themer/templates, then the theme's own templates/ folder,
+#             override the shipped one
+#   format    a built-in output: json, css, sh, pywal, pywal-sh, pywal-css
+#   output    destination; may use {{ tokens }} ({{ scheme }}, {{ variant }}, {{ theme }}) and {firefox}
+#   variants  "active" (default) renders the applied variant, "all" renders every variant the theme has
+#   mode      "write" (default) replaces the file, "merge-ini" sets only the listed keys in a KDE config file,
+#             "ensure-lines" adds or replaces single lines (user.js)
+#   reload    built-in action (kde-colors, kwin, kde-style, gtk) or a shell command, run when the file changed
+#   dotfiles  true: with [dotfiles] on in settings.toml, write the file into the dotfiles folder at the same path
+#             relative to ~ and let stow link it. Use it for whole files Themer owns, not for merged ones.
+#   adopt     path under your themer folder: if the output exists and was not written by Themer, keep a copy
+#             there first (used to keep an old userChrome.css as a disabled snippet)
+#   enabled   false to skip
+#
+# Add your own: drop a template in ~/.config/themer/templates/ and add a [[target]] to
+# ~/.config/themer/targets.toml. That file is read on top of this one: a target with the name of one here replaces
+# it (add enabled = false to turn it off), any other name is added after these.
+
+# ---- KDE Plasma ------------------------------------------------------------------------------------------------------
+
+[[target]]
+name = "Plasma color schemes"
+dotfiles = true
+group = "kde"
+template = "kde/scheme.colors"
+output = "~/.local/share/color-schemes/{{ scheme }}.colors"
+variants = "all"
+reload = "kde-colors"
+
+[[target]]
+name = "Fonts and widget style"
+group = "kde"
+template = "kde/kdeglobals.ini"
+output = "~/.config/kdeglobals"
+mode = "merge-ini"
+reload = "kde-style"
+
+[[target]]
+name = "Darkly widget style and window decoration"
+group = "kde"
+template = "kde/darklyrc.ini"
+output = "~/.config/darklyrc"
+mode = "merge-ini"
+reload = "kwin"
+
+[[target]]
+name = "Window buttons on the right"
+group = "kde"
+template = "kde/kwinrc.ini"
+output = "~/.config/kwinrc"
+mode = "merge-ini"
+reload = "kwin"
+
+# ---- Konsole ---------------------------------------------------------------------------------------------------------
+
+[[target]]
+name = "Konsole color schemes"
+dotfiles = true
+group = "konsole"
+template = "konsole/scheme.colorscheme"
+output = "~/.local/share/konsole/{{ scheme }}.colorscheme"
+variants = "all"
+
+[[target]]
+name = "Konsole profile"
+dotfiles = true
+group = "konsole"
+template = "konsole/Themer.profile"
+output = "~/.local/share/konsole/Themer.profile"
+
+[[target]]
+name = "Konsole default profile"
+group = "konsole"
+template = "konsole/konsolerc.ini"
+output = "~/.config/konsolerc"
+mode = "merge-ini"
+
+# ---- Editors ---------------------------------------------------------------------------------------------------------
+
+[[target]]
+name = "Kate, KWrite and KDevelop syntax theme"
+dotfiles = true
+group = "kate"
+template = "kate/syntax.theme"
+output = "~/.local/share/org.kde.syntax-highlighting/themes/Themer-{{ Variant }}.theme"
+variants = "all"
+
+[[target]]
+name = "Kate uses the Themer syntax theme"
+group = "kate"
+template = "kate/katerc.ini"
+output = "~/.config/katerc"
+mode = "merge-ini"
+
+# ---- GTK -------------------------------------------------------------------------------------------------------------
+
+# Plasma already passes the color scheme to GTK apps (kde-gtk-config). themer.css refines libadwaita on top of it
+# and is imported last from gtk.css, so a Plasma rewrite of gtk.css only needs another `themer apply`.
+[[target]]
+name = "GTK 4 and libadwaita colors"
+dotfiles = true
+group = "gtk"
+template = "gtk/themer.css"
+output = "~/.config/gtk-4.0/themer.css"
+reload = "gtk"
+
+[[target]]
+name = "GTK 4 import"
+group = "gtk"
+template = "gtk/import.css"
+output = "~/.config/gtk-4.0/gtk.css"
+mode = "ensure-lines"
+
+# ---- Firefox ---------------------------------------------------------------------------------------------------------
+
+[[target]]
+name = "Firefox colors"
+group = "firefox"
+format = "css"
+output = "{firefox}/chrome/themer-colors.css"
+
+[[target]]
+name = "Firefox userChrome.css"
+group = "firefox"
+template = "firefox/userChrome.css"
+output = "{firefox}/chrome/userChrome.css"
+adopt = "firefox/chrome/_previous-userChrome.css"
+
+[[target]]
+name = "Firefox userContent.css"
+group = "firefox"
+template = "firefox/userContent.css"
+output = "{firefox}/chrome/userContent.css"
+adopt = "firefox/content/_previous-userContent.css"
+
+[[target]]
+name = "Firefox prefs"
+group = "firefox"
+template = "firefox/user.js"
+output = "{firefox}/user.js"
+mode = "ensure-lines"
+
+# ---- Exports for everything else -------------------------------------------------------------------------------------
+
+[[target]]
+name = "Tokens as JSON"
+group = "exports"
+format = "json"
+output = "~/.cache/themer/colors.json"
+
+[[target]]
+name = "Tokens as CSS variables"
+group = "exports"
+format = "css"
+output = "~/.cache/themer/colors.css"
+
+[[target]]
+name = "Tokens as shell variables"
+group = "exports"
+format = "sh"
+output = "~/.cache/themer/colors.sh"
+
+[[target]]
+name = "pywal colors.json"
+group = "exports"
+format = "pywal"
+output = "~/.cache/wal/colors.json"
+
+[[target]]
+name = "pywal colors.sh"
+group = "exports"
+format = "pywal-sh"
+output = "~/.cache/wal/colors.sh"
+
+[[target]]
+name = "pywal colors.css"
+group = "exports"
+format = "pywal-css"
+output = "~/.cache/wal/colors.css"
+
+[[target]]
+name = "pywal theme files (wal --theme ~/.config/wal/colorschemes/dark/<theme>.json)"
+dotfiles = true
+group = "exports"
+format = "pywal"
+output = "~/.config/wal/colorschemes/{{ variant }}/{{ theme }}.json"
+variants = "all"

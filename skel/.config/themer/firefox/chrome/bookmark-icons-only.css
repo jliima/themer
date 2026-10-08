@@ -1,0 +1,11 @@
+/*
+ * Bookmarks toolbar: hide the label of every bookmark whose name starts with *, leaving just its icon.
+ * Rename a bookmark to "*GitHub" and only the icon shows; the name still works in search and the library.
+ *
+ * Every .css file in this folder is added to the end of userChrome.css by `themer apply`, in file name order,
+ * so it wins over the theme. Files in ../content go to userContent.css. Prefix a file name with _ to turn it off.
+ * Theme colors are available as var(--themer-accent), var(--themer-surface) and so on.
+ */
+#PlacesToolbarItems > .bookmark-item[label^="*"] > .toolbarbutton-text {
+  display: none !important;
+}

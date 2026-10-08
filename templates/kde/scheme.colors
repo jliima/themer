@@ -1,0 +1,147 @@
+[ColorEffects:Disabled]
+Color={{ bg | rgb }}
+ColorAmount=0.55
+ColorEffect=3
+ContrastAmount=0.65
+ContrastEffect=1
+IntensityAmount=0
+IntensityEffect=0
+
+[ColorEffects:Inactive]
+ChangeSelectionColor=false
+Color={{ bg | rgb }}
+ColorAmount=0
+ColorEffect=0
+ContrastAmount=0
+ContrastEffect=0
+Enable=false
+IntensityAmount=0
+IntensityEffect=0
+
+[Colors:Button]
+BackgroundAlternate={{ surface-active | rgb }}
+BackgroundNormal={{ surface-hover | rgb }}
+DecorationFocus={{ focus-ring | rgb }}
+DecorationHover={{ accent | rgb }}
+ForegroundActive={{ accent | rgb }}
+ForegroundInactive={{ text-subtle | rgb }}
+ForegroundLink={{ link | rgb }}
+ForegroundNegative={{ danger | rgb }}
+ForegroundNeutral={{ warning | rgb }}
+ForegroundNormal={{ text | rgb }}
+ForegroundPositive={{ success | rgb }}
+ForegroundVisited={{ violet | rgb }}
+
+[Colors:Complementary]
+BackgroundAlternate={{ surface | rgb }}
+BackgroundNormal={{ bg-deep | rgb }}
+DecorationFocus={{ focus-ring | rgb }}
+DecorationHover={{ accent | rgb }}
+ForegroundActive={{ accent | rgb }}
+ForegroundInactive={{ text-subtle | rgb }}
+ForegroundLink={{ link | rgb }}
+ForegroundNegative={{ danger | rgb }}
+ForegroundNeutral={{ warning | rgb }}
+ForegroundNormal={{ text | rgb }}
+ForegroundPositive={{ success | rgb }}
+ForegroundVisited={{ violet | rgb }}
+
+[Colors:Header]
+BackgroundAlternate={{ bg-sunken | rgb }}
+BackgroundNormal={{ bg-deep | rgb }}
+DecorationFocus={{ focus-ring | rgb }}
+DecorationHover={{ accent | rgb }}
+ForegroundActive={{ accent | rgb }}
+ForegroundInactive={{ text-subtle | rgb }}
+ForegroundLink={{ link | rgb }}
+ForegroundNegative={{ danger | rgb }}
+ForegroundNeutral={{ warning | rgb }}
+ForegroundNormal={{ text | rgb }}
+ForegroundPositive={{ success | rgb }}
+ForegroundVisited={{ violet | rgb }}
+
+[Colors:Header][Inactive]
+BackgroundAlternate={{ bg-sunken | rgb }}
+BackgroundNormal={{ bg-deep | rgb }}
+DecorationFocus={{ focus-ring | rgb }}
+DecorationHover={{ accent | rgb }}
+ForegroundActive={{ accent | rgb }}
+ForegroundInactive={{ text-faint | rgb }}
+ForegroundLink={{ link | rgb }}
+ForegroundNegative={{ danger | rgb }}
+ForegroundNeutral={{ warning | rgb }}
+ForegroundNormal={{ text-subtle | rgb }}
+ForegroundPositive={{ success | rgb }}
+ForegroundVisited={{ violet | rgb }}
+
+[Colors:Selection]
+BackgroundAlternate={{ accent-soft | rgb }}
+BackgroundNormal={{ kde-selection | rgb }}
+DecorationFocus={{ focus-ring | rgb }}
+DecorationHover={{ accent | rgb }}
+ForegroundActive={{ kde-selection-text | rgb }}
+ForegroundInactive={{ kde-selection-text | rgb }}
+ForegroundLink={{ kde-selection-text | rgb }}
+ForegroundNegative={{ danger | rgb }}
+ForegroundNeutral={{ warning | rgb }}
+ForegroundNormal={{ kde-selection-text | rgb }}
+ForegroundPositive={{ success | rgb }}
+ForegroundVisited={{ kde-selection-text | rgb }}
+
+[Colors:Tooltip]
+BackgroundAlternate={{ surface | rgb }}
+BackgroundNormal={{ surface-raised | rgb }}
+DecorationFocus={{ focus-ring | rgb }}
+DecorationHover={{ accent | rgb }}
+ForegroundActive={{ accent | rgb }}
+ForegroundInactive={{ text-subtle | rgb }}
+ForegroundLink={{ link | rgb }}
+ForegroundNegative={{ danger | rgb }}
+ForegroundNeutral={{ warning | rgb }}
+ForegroundNormal={{ text | rgb }}
+ForegroundPositive={{ success | rgb }}
+ForegroundVisited={{ violet | rgb }}
+
+[Colors:View]
+BackgroundAlternate={{ bg-sunken | mix(surface, 0.35) | rgb }}
+BackgroundNormal={{ bg-sunken | rgb }}
+DecorationFocus={{ focus-ring | rgb }}
+DecorationHover={{ accent | rgb }}
+ForegroundActive={{ accent | rgb }}
+ForegroundInactive={{ text-subtle | rgb }}
+ForegroundLink={{ link | rgb }}
+ForegroundNegative={{ danger | rgb }}
+ForegroundNeutral={{ warning | rgb }}
+ForegroundNormal={{ text | rgb }}
+ForegroundPositive={{ success | rgb }}
+ForegroundVisited={{ violet | rgb }}
+
+[Colors:Window]
+BackgroundAlternate={{ surface | rgb }}
+BackgroundNormal={{ bg | rgb }}
+DecorationFocus={{ focus-ring | rgb }}
+DecorationHover={{ accent | rgb }}
+ForegroundActive={{ accent | rgb }}
+ForegroundInactive={{ text-subtle | rgb }}
+ForegroundLink={{ link | rgb }}
+ForegroundNegative={{ danger | rgb }}
+ForegroundNeutral={{ warning | rgb }}
+ForegroundNormal={{ text | rgb }}
+ForegroundPositive={{ success | rgb }}
+ForegroundVisited={{ violet | rgb }}
+
+[General]
+ColorScheme={{ scheme }}
+Name={{ name }} {{ Variant }}
+shadeSortColumn=false
+
+[KDE]
+contrast=4
+
+[WM]
+activeBackground={{ bg-deep | rgb }}
+activeBlend={{ text | rgb }}
+activeForeground={{ text-muted | rgb }}
+inactiveBackground={{ bg-deep | rgb }}
+inactiveBlend={{ text-faint | rgb }}
+inactiveForeground={{ text-faint | rgb }}

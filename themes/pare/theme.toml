@@ -1,0 +1,232 @@
+# Pare: a Themer theme.
+#
+#   themer apply --theme pare             apply it (themer apply --theme pare:light for the light variant)
+#   themer check --theme pare             contrast report
+#   themer validate --theme pare          check it fills the token contract (contract.toml)
+#
+# Values: "#rrggbb", "oklch(L C H)" (L 0..1, C about 0..0.37, H degrees), or "{other-token}".
+# Anything left out falls back to defaults.toml: roles, syntax colors, terminal colors, fonts, shapes.
+# Each hue may also define -bright, -dim and -soft; leave them out and Themer derives them from the base hue.
+
+[meta]
+id = "pare"
+name = "Pare"
+description = "Cool blue-grey neutrals with tuned, readable accents. Dark first."
+version = "1.0.0"
+variants = ["dark", "light"]
+default-variant = "dark"
+
+[fonts]
+sans = "SF Pro"
+mono = "Liga SFMono Nerd Font"
+ui-weight = 500            # from the design system's body style
+title-weight = 600
+
+[shape]
+radius-xs = 4
+radius-sm = 6
+radius-md = 10
+radius-lg = 14
+
+# Roles: what each color is for. A variant table can override any of them.
+[roles]
+accent = "{blue}"
+accent-hover = "{blue-bright}"
+accent-soft = "{blue-soft}"
+focus-ring = "{blue}"
+link = "{blue}"
+success = "{green}"
+success-soft = "{green-soft}"
+warning = "{orange}"
+warning-soft = "{orange-soft}"
+danger = "{red}"
+danger-soft = "{red-soft}"
+info = "{cyan}"
+info-soft = "{cyan-soft}"
+syntax-keyword = "{green}"
+syntax-string = "{magenta}"
+syntax-escape = "{cyan}"
+syntax-number = "{red}"
+syntax-constant = "{red}"
+syntax-function = "{blue}"
+syntax-class = "{blue-bright}"
+syntax-type = "{cyan}"
+syntax-annotation = "{violet}"
+syntax-doc-tag = "{orange}"
+syntax-property = "{cyan}"
+syntax-tag = "{green}"
+syntax-attribute = "{orange}"
+syntax-variable = "{text}"
+syntax-operator = "{text-muted}"
+syntax-punctuation = "{text-subtle}"
+syntax-comment = "{text-faint}"
+syntax-heading = "{blue-bright}"
+syntax-link = "{blue}"
+syntax-url = "{cyan}"
+syntax-regex = "{cyan}"
+
+[dark]
+# Grounds, deepest to highest
+bg-deep = "#05090e"
+bg-sunken = "#070c12"
+bg = "#091017"
+# Surfaces
+surface = "#121a23"
+surface-raised = "#19232c"
+surface-hover = "#1e2933"
+surface-active = "#28333e"
+# Lines
+line = "#222b35"
+line-strong = "#5d6b79"
+# Text, brightest last
+text-bright = "#eaf1f8"
+text = "#d1deeb"
+text-muted = "#b0bcc8"
+text-subtle = "#909daa"
+text-faint = "#788898"
+text-disabled = "#505c69"
+text-inverse = "{bg-deep}"
+# Red
+red = "#f45959"
+red-bright = "#ff7e79"
+red-dim = "#ac403f"
+red-soft = "#411716"
+# Orange
+orange = "#f58d31"
+orange-bright = "#ffab6b"
+orange-dim = "#9b540e"
+orange-soft = "#3d1d01"
+# Yellow
+yellow = "#f7c747"
+yellow-bright = "#ffe29b"
+yellow-dim = "#826400"
+yellow-soft = "#322400"
+# Green
+green = "#30da97"
+green-bright = "#67efb1"
+green-dim = "#007d53"
+green-soft = "#002f1d"
+# Cyan
+cyan = "#2bc5c7"
+cyan-bright = "#61dadb"
+cyan-dim = "#00787a"
+cyan-soft = "#002d2e"
+# Blue
+blue = "#5faff1"
+blue-bright = "#82c5ff"
+blue-dim = "#366e9c"
+blue-soft = "#0f283d"
+# Violet
+violet = "#ad8ded"
+violet-bright = "#c1a5fd"
+violet-dim = "#715a9d"
+violet-soft = "#2a203e"
+# Magenta
+magenta = "#ee5db3"
+magenta-bright = "#ff7dc7"
+magenta-dim = "#a33d79"
+magenta-soft = "#3c172c"
+# Text on solid hue fills
+on-accent = "{bg-deep}"
+# Selection
+selection = "#19405f"
+# Terminal colors 0 to 15
+ansi-0 = "{surface-active}"
+ansi-1 = "{red}"
+ansi-2 = "{green}"
+ansi-3 = "{yellow}"
+ansi-4 = "{blue}"
+ansi-5 = "{magenta}"
+ansi-6 = "{cyan}"
+ansi-7 = "{text-muted}"
+ansi-8 = "{text-faint}"
+ansi-9 = "{red-bright}"
+ansi-10 = "{green-bright}"
+ansi-11 = "{yellow-bright}"
+ansi-12 = "{blue-bright}"
+ansi-13 = "{magenta-bright}"
+ansi-14 = "{cyan-bright}"
+ansi-15 = "{text-bright}"
+
+[light]
+# Grounds, deepest to highest
+bg-deep = "#dee4e9"
+bg-sunken = "#e9edf2"
+bg = "#f4f7fa"
+# Surfaces
+surface = "#fcfeff"
+surface-raised = "#ffffff"
+surface-hover = "#e4eaf0"
+surface-active = "#d9e1e8"
+# Lines
+line = "#d7dde3"
+line-strong = "#7a858f"
+# Text, brightest last
+text-bright = "#081018"
+text = "#1a2530"
+text-muted = "#3c4956"
+text-subtle = "#515f6d"
+text-faint = "#5c6b7a"
+text-disabled = "#979fa8"
+text-inverse = "{surface-raised}"
+# Red
+red = "#c72c34"
+red-bright = "#ab1524"
+red-dim = "#e07671"
+red-soft = "#ffe4e1"
+# Orange
+orange = "#a15500"
+orange-bright = "#854500"
+orange-dim = "#c9824c"
+orange-soft = "#ffe6d4"
+# Yellow
+yellow = "#846600"
+yellow-bright = "#6c5300"
+yellow-dim = "#af9040"
+yellow-soft = "#f6eacf"
+# Green
+green = "#007950"
+green-bright = "#006240"
+green-dim = "#41a478"
+green-soft = "#d5f4e3"
+# Cyan
+cyan = "#007576"
+cyan-bright = "#005f60"
+cyan-dim = "#479fa0"
+cyan-soft = "#d5f2f2"
+# Blue
+blue = "#156eac"
+blue-bright = "#005991"
+blue-dim = "#6498c5"
+blue-soft = "#dbeeff"
+# Violet
+violet = "#7858b3"
+violet-bright = "#644599"
+violet-dim = "#9e8acc"
+violet-soft = "#ede7ff"
+# Magenta
+magenta = "#b83085"
+magenta-bright = "#9d1b6f"
+magenta-dim = "#d475a9"
+magenta-soft = "#ffe2f0"
+# Text on solid hue fills
+on-accent = "#ffffff"
+# Selection
+selection = "#bad8f4"
+# Terminal colors 0 to 15
+ansi-0 = "{text-muted}"
+ansi-1 = "{red}"
+ansi-2 = "{green}"
+ansi-3 = "{yellow}"
+ansi-4 = "{blue}"
+ansi-5 = "{magenta}"
+ansi-6 = "{cyan}"
+ansi-7 = "{line-strong}"
+ansi-8 = "{text-subtle}"
+ansi-9 = "{red-bright}"
+ansi-10 = "{green-bright}"
+ansi-11 = "{yellow-bright}"
+ansi-12 = "{blue-bright}"
+ansi-13 = "{magenta-bright}"
+ansi-14 = "{cyan-bright}"
+ansi-15 = "{line}"

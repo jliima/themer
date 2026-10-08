@@ -1,0 +1,1615 @@
+#!/usr/bin/env python3
+"""Themer: install a design system's colors, fonts and shapes into every app on the desktop.
+
+A theme is a folder with a theme.toml that fills in the Themer token contract (bg, surface, text, eight hues, roles,
+syntax and terminal colors) for one or more variants (dark, light). Themer resolves those tokens, renders the
+templates listed in targets.toml for Plasma, Darkly, Konsole, Kate, GTK, Firefox and anything else, installs them
+and reloads what can be reloaded.
+
+  themer apply --theme pare            apply a theme (its default variant)
+  themer apply --theme pare --variant light
+  themer mode toggle                   switch the current theme between dark and light
+
+Python 3.11+ standard library only.
+"""
+
+import argparse
+import datetime as _dt
+import json
+import math
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+VERSION = "2.0.0"
+HOME = Path.home()
+SELF_DIR = Path(__file__).resolve().parent
+CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "themer"
+STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "themer"
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / "themer"
+VARIANTS = ("dark", "light")
+HUES = ("red", "orange", "yellow", "green", "cyan", "blue", "violet", "magenta")
+STEPS = ("bright", "dim", "soft")
+ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}$")
+
+
+def die(msg):
+  sys.exit(f"themer: {msg}")
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Color math: sRGB <-> OKLab/OKLCH, gamut mapping, WCAG contrast
+# ---------------------------------------------------------------------------------------------------------------------
+
+def _lin(c):
+  return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def _gam(c):
+  return 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+
+
+def hex_to_rgb(h):
+  h = h.lstrip("#")
+  if len(h) == 3:
+    h = "".join(ch * 2 for ch in h)
+  return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def rgb_to_hex(rgb):
+  return "#" + "".join(f"{round(max(0, min(1, c)) * 255):02x}" for c in rgb)
+
+
+def rgb_to_oklab(rgb):
+  r, g, b = (_lin(c) for c in rgb)
+  l_ = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3)
+  m_ = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3)
+  s_ = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3)
+  return (0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+          1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+          0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_)
+
+
+def oklab_to_rgb_linear(lab):
+  L, a, b = lab
+  l_ = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
+  m_ = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
+  s_ = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3
+  return (4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
+          -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
+          -0.0041960863 * l_ - 0.7034186147 * m_ + 1.7076147010 * s_)
+
+
+def oklch_to_hex(L, C, H):
+  """Gamut-maps by lowering chroma until the color fits sRGB."""
+  L = max(0.0, min(1.0, L))
+
+  def lin(c):
+    return oklab_to_rgb_linear((L, c * math.cos(math.radians(H)), c * math.sin(math.radians(H))))
+
+  def ok(rgb):
+    return all(-1e-4 <= v <= 1 + 1e-4 for v in rgb)
+
+  if not ok(lin(C)):
+    lo, hi = 0.0, C
+    for _ in range(30):
+      mid = (lo + hi) / 2
+      lo, hi = (mid, hi) if ok(lin(mid)) else (lo, mid)
+    C = lo
+  return rgb_to_hex(tuple(_gam(max(0.0, v)) for v in lin(C)))
+
+
+def hex_to_oklch(h):
+  L, a, b = rgb_to_oklab(hex_to_rgb(h))
+  return L, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
+
+
+def luminance(h):
+  r, g, b = (_lin(c) for c in hex_to_rgb(h))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+  la, lb = sorted((luminance(a), luminance(b)), reverse=True)
+  return (la + 0.05) / (lb + 0.05)
+
+
+def mix(a, b, t):
+  """Mixes a toward b by t (0..1) in OKLab."""
+  la, lb = rgb_to_oklab(hex_to_rgb(a)), rgb_to_oklab(hex_to_rgb(b))
+  lab = tuple(x + (y - x) * t for x, y in zip(la, lb))
+  return rgb_to_hex(tuple(_gam(max(0.0, min(1.0, v))) for v in oklab_to_rgb_linear(lab)))
+
+
+def shift_l(h, dl):
+  L, C, H = hex_to_oklch(h)
+  return oklch_to_hex(L + dl, C, H)
+
+
+COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+OKLCH_RE = re.compile(r"^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)\s*\)$")
+ALIAS_RE = re.compile(r"^\{([\w.-]+)\}$")
+
+
+def parse_color(v):
+  v = v.strip()
+  if COLOR_RE.match(v):
+    return rgb_to_hex(hex_to_rgb(v))
+  m = OKLCH_RE.match(v)
+  if m:
+    L = float(m.group(1)) / (100 if m.group(2) else 1)
+    return oklch_to_hex(L, float(m.group(3)), float(m.group(4)))
+  return None
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Settings and where user files live
+# ---------------------------------------------------------------------------------------------------------------------
+
+def load_toml(path):
+  with open(path, "rb") as f:
+    return tomllib.load(f)
+
+
+_SETTINGS = None
+
+
+def settings():
+  """Machine settings (settings.toml): ~/.config/themer first, then the dotfiles copy next to this script, so a
+  fresh dotfiles checkout works before it is stowed."""
+  global _SETTINGS
+  if _SETTINGS is None:
+    _SETTINGS = {}
+    env = os.environ.get("THEMER_SETTINGS")
+    for f in ([Path(env)] if env else []) + [CONFIG_DIR / "settings.toml",
+                                             SELF_DIR.parent / ".config/themer/settings.toml"]:
+      if f.exists():
+        _SETTINGS = load_toml(f)
+        break
+  return _SETTINGS
+
+
+def dotfiles_dir():
+  """The stow directory (for example ~/dotfiles) when [dotfiles] is enabled, else None."""
+  d = settings().get("dotfiles", {})
+  if not d.get("enabled", False):
+    return None
+  return Path(os.path.expanduser(d.get("path", "~/dotfiles")))
+
+
+def home_rel(p):
+  try:
+    return Path(p).relative_to(HOME)
+  except ValueError:
+    return None
+
+
+def user_dir():
+  """Where Themer keeps your themes, templates, snippets and settings. With dotfiles on, the dotfiles copy of
+  ~/.config/themer, so new files land in the repo even before stow links them."""
+  df = dotfiles_dir()
+  rel = home_rel(CONFIG_DIR) or Path(".config/themer")
+  return df / rel if df else CONFIG_DIR
+
+
+def user_dirs():
+  """user_dir() plus ~/.config/themer when they differ, without duplicates."""
+  out = []
+  for d in (user_dir(), CONFIG_DIR):
+    if all(os.path.realpath(d) != os.path.realpath(o) for o in out):
+      out.append(d)
+  return out
+
+
+def is_user_path(p):
+  rp = os.path.realpath(p)
+  return any(rp.startswith(os.path.realpath(d) + os.sep) for d in user_dirs())
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Themes: folders with a theme.toml, found in your themes folder first, then next to this script
+# ---------------------------------------------------------------------------------------------------------------------
+
+def theme_dirs():
+  return [d / "themes" for d in user_dirs()] + [SELF_DIR / "themes"]
+
+
+def find_config(name):
+  for d in (*user_dirs(), SELF_DIR):
+    if (d / name).exists():
+      return d / name
+  die(f"{name} not found in {', '.join(str(d) for d in (*user_dirs(), SELF_DIR))}")
+
+
+def theme_path(ref):
+  """A theme id (pare), a folder with theme.toml, or a theme.toml file."""
+  p = Path(os.path.expanduser(ref))
+  if p.is_file():
+    return p
+  if p.is_dir() and (p / "theme.toml").exists():
+    return p / "theme.toml"
+  for d in theme_dirs():
+    if (d / ref / "theme.toml").exists():
+      return d / ref / "theme.toml"
+  known = ", ".join(sorted(all_themes())) or "none"
+  die(f"no theme '{ref}'. Installed themes: {known}")
+
+
+def all_themes():
+  """{id: path} with user themes shadowing bundled ones."""
+  found = {}
+  for d in reversed(theme_dirs()):
+    if d.is_dir():
+      for sub in sorted(d.iterdir()):
+        if (sub / "theme.toml").exists():
+          found[sub.name] = sub / "theme.toml"
+  return found
+
+
+def load_theme(ref):
+  """Loads a theme and layers it over defaults.toml. Returns the merged dict ("pal")."""
+  path = theme_path(ref)
+  data = load_toml(path)
+  defaults = load_toml(find_config("defaults.toml"))
+  pal = {}
+  for section in set(defaults) | set(data):
+    a, b = defaults.get(section, {}), data.get(section, {})
+    if section in VARIANTS or section == "roles":
+      pal[section] = b
+    elif isinstance(a, dict) or isinstance(b, dict):
+      pal[section] = {**a, **b}
+    else:
+      pal[section] = b if section in data else a
+  meta = pal.setdefault("meta", {})
+  meta.setdefault("id", path.parent.name)
+  meta.setdefault("name", meta["id"].capitalize())
+  variants = [v for v in meta.get("variants", VARIANTS) if v in data]
+  if not variants:
+    die(f"theme {meta['id']} has no [dark] or [light] table")
+  meta["variants"] = variants
+  if meta.get("default-variant") not in variants:
+    meta["default-variant"] = variants[0]
+  pal["_defaults"] = defaults
+  pal["_path"] = path
+  pal["_dir"] = path.parent
+  return pal
+
+
+def variants_of(pal):
+  return pal["meta"]["variants"]
+
+
+def derive_step(base, step, variant):
+  L, C, H = hex_to_oklch(base)
+  if variant == "dark":
+    if step == "bright":
+      return oklch_to_hex(min(L + 0.07, 0.93), C * 0.9, H)
+    if step == "dim":
+      return oklch_to_hex(0.52, C * 0.75, H)
+    return oklch_to_hex(0.27, min(C * 0.4, 0.065), H)
+  if step == "bright":
+    return oklch_to_hex(L - 0.07, C * 0.95, H)
+  if step == "dim":
+    return oklch_to_hex(min(L + 0.14, 0.82), C * 0.7, H)
+  return oklch_to_hex(0.94, min(C * 0.25, 0.04), H)
+
+
+def raw_tokens(pal, variant):
+  """Every token's source value, by precedence: theme [variant], theme [roles], defaults [variant], defaults [roles]."""
+  if variant not in variants_of(pal):
+    die(f"theme {pal['meta']['id']} has no {variant} variant (it has: {', '.join(variants_of(pal))})")
+  d = pal["_defaults"]
+  raw = {}
+  for layer in (pal.get(variant, {}), pal.get("roles", {}), d.get(variant, {}), d.get("roles", {})):
+    for k, v in layer.items():
+      if not isinstance(v, dict):
+        raw.setdefault(k, v)
+  for hue in HUES:
+    if hue in raw:
+      for step in STEPS:
+        raw.setdefault(f"{hue}-{step}", f"@derive:{hue}:{step}")
+  return raw
+
+
+def resolve(pal, variant):
+  """Returns {token: '#rrggbb'} for one variant, aliases followed and hue steps derived."""
+  raw = raw_tokens(pal, variant)
+  out, stack = {}, []
+  tid = pal["meta"]["id"]
+
+  def get(name):
+    if name in out:
+      return out[name]
+    if name not in raw:
+      raise KeyError(name)
+    if name in stack:
+      die(f"{tid} [{variant}]: alias loop at {' -> '.join(stack + [name])}")
+    stack.append(name)
+    v = str(raw[name])
+    if v.startswith("@derive:"):
+      _, hue, step = v.split(":")
+      val = derive_step(get(hue), step, variant)
+    elif ALIAS_RE.match(v):
+      ref = ALIAS_RE.match(v).group(1)
+      try:
+        val = get(ref)
+      except KeyError:
+        die(f"{tid} [{variant}]: {name} points to {{{ref}}}, which the theme does not define")
+    else:
+      val = parse_color(v)
+      if val is None:
+        die(f"{tid} [{variant}]: {name} = {v!r} is not a color (use #rrggbb, oklch(L C H) or {{token}})")
+    stack.pop()
+    out[name] = val
+    return val
+
+  for k in list(raw):
+    try:
+      get(k)
+    except KeyError:
+      pass
+  return {k: out[k] for k in raw if k in out}
+
+
+def context(pal, variant):
+  """Everything a template can reach: colors plus fonts, shape, app settings and names."""
+  ctx = dict(resolve(pal, variant))
+  meta = pal["meta"]
+  ctx.update({"variant": variant, "Variant": variant.capitalize(), "theme": meta["id"], "name": meta["name"],
+              "scheme": f"{meta['name'].replace(' ', '')}{variant.capitalize()}",
+              "is-dark": 1 if variant == "dark" else 0, "is-light": 0 if variant == "dark" else 1})
+  for section, values in pal.items():
+    if isinstance(values, dict) and section not in VARIANTS and section not in ("roles", "meta", "_defaults"):
+      for k, v in values.items():
+        if not isinstance(v, dict):
+          ctx[f"{section}.{k}"] = v
+  for kind in ("chrome", "content"):
+    ctx[f"firefox-{kind}-imports"], ctx[f"firefox-{kind}-snippets"] = firefox_snippets(pal, kind, ctx)
+  return ctx
+
+
+def snippet_files(pal, kind):
+  """Firefox CSS snippets, by file name: the theme's firefox/<kind>/ first, then yours (same name wins).
+  Files starting with _ or ending in .disabled are skipped."""
+  found = {}
+  for d in (pal["_dir"] / "firefox" / kind, *[u / "firefox" / kind for u in reversed(user_dirs())]):
+    if d.is_dir():
+      for f in sorted(d.iterdir()):
+        if f.suffix == ".css" and f.is_file() and not f.name.startswith("_"):
+          found[f.name] = f
+  return [found[k] for k in sorted(found)]
+
+
+IMPORT_RE = re.compile(r"^\s*@(?:import|namespace)\b[^;]*;\s*$", re.M)
+
+
+def firefox_snippets(pal, kind, ctx):
+  """(imports, body): the snippets of one kind joined for the end of userChrome.css or userContent.css.
+  @import and @namespace lines are pulled out, because CSS only accepts them at the top of the file."""
+  files = snippet_files(pal, kind)
+  if not files:
+    where = str(user_dir() / "firefox" / kind).replace(str(HOME), "~", 1)
+    return "", f"/* No {kind} snippets. Add .css files to {where}. */"
+  imports, parts = [], []
+  for f in files:
+    try:
+      body = render(f.read_text(), ctx, str(f))
+    except KeyError as e:
+      die(f"Firefox snippet {e.args[0]}")
+    imports += [m.group(0).strip() for m in IMPORT_RE.finditer(body)]
+    body = IMPORT_RE.sub("", body)
+    where = str(f.parent).replace(str(HOME), "~", 1)
+    parts.append(f"/* ---- snippet: {f.name} ({where}) ---- */\n{body.strip()}\n")
+  return "\n".join(dict.fromkeys(imports)), "\n".join(parts)
+
+
+def contract():
+  return load_toml(find_config("contract.toml"))
+
+
+def validate(pal):
+  """Problems that would break templates: missing required tokens and unresolvable values, per variant."""
+  req = contract()
+  problems = []
+  for v in variants_of(pal):
+    toks = resolve(pal, v)
+    for group, names in req.get("required", {}).items():
+      missing = [n for n in names if n not in toks]
+      if missing:
+        problems.append(f"[{v}] missing {group}: {', '.join(missing)}")
+  return problems
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Templates: {{ token }}, {{ token | filter | filter(arg) }}
+# ---------------------------------------------------------------------------------------------------------------------
+
+TAG_RE = re.compile(r"\{\{\s*([\w.-]+)((?:\s*\|\s*[\w-]+(?:\([^)]*\))?)*)\s*\}\}")
+FILTER_RE = re.compile(r"\|\s*([\w-]+)(?:\(([^)]*)\))?")
+
+
+def _arg_color(ctx, a):
+  a = a.strip().strip("\"'")
+  return ctx[a] if a in ctx else parse_color(a)
+
+
+def apply_filter(ctx, value, name, arg):
+  is_color = isinstance(value, str) and COLOR_RE.match(value)
+  if name == "hex":
+    return value
+  if name == "strip":
+    return value.lstrip("#")
+  if name == "upper":
+    return str(value).upper()
+  if name == "lower":
+    return str(value).lower()
+  if is_color:
+    r, g, b = (round(c * 255) for c in hex_to_rgb(value))
+    if name == "rgb":
+      return f"{r},{g},{b}"
+    if name == "rgbcss":
+      return f"rgb({r}, {g}, {b})"
+    if name == "rgba":
+      return f"rgba({r}, {g}, {b}, {float(arg)})"
+    if name == "alpha":
+      return f"{value}{round(float(arg) * 255):02x}"
+    if name == "mix":
+      other, t = arg.rsplit(",", 1)
+      return mix(value, _arg_color(ctx, other), float(t))
+    if name == "lighten":
+      return shift_l(value, float(arg))
+    if name == "darken":
+      return shift_l(value, -float(arg))
+    if name == "oklch":
+      L, C, H = hex_to_oklch(value)
+      return f"oklch({L:.3f} {C:.3f} {H:.1f})"
+  if name == "px":
+    return f"{value}px"
+  if name == "int":
+    return str(int(float(value)))
+  if name == "div":
+    return f"{float(value) / float(arg):g}"
+  raise ValueError(f"unknown filter '{name}' for value {value!r}")
+
+
+def render(text, ctx, where="template"):
+  def sub(m):
+    key, filters = m.group(1), m.group(2)
+    if key not in ctx:
+      raise KeyError(f"{where}: unknown token '{key}'")
+    v = ctx[key]
+    for fm in FILTER_RE.finditer(filters):
+      v = apply_filter(ctx, v, fm.group(1), fm.group(2))
+    return str(v)
+  return TAG_RE.sub(sub, text)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Built-in formats
+# ---------------------------------------------------------------------------------------------------------------------
+
+def fmt_json(pal, theme):
+  out = {"name": pal["meta"]["name"], "theme": pal["meta"]["id"], "variant": theme, "colors": resolve(pal, theme),
+         "fonts": pal.get("fonts", {}), "shape": pal.get("shape", {})}
+  return json.dumps(out, indent=2) + "\n"
+
+
+def fmt_css(pal, theme):
+  lines = ["/* Generated by Themer. Do not edit; change the theme and run `themer apply`. */"]
+  for i, th in enumerate(variants_of(pal)):
+    sel = f':root, :root[data-theme="{th}"]' if th == theme else f':root[data-theme="{th}"]'
+    lines.append(sel + " {")
+    lines += [f"  --themer-{k}: {v};" for k, v in resolve(pal, th).items()]
+    lines.append("}")
+  lines.append(":root {")
+  for k, v in pal.get("fonts", {}).items():
+    lines.append(f"  --themer-font-{k}: {json.dumps(v) if isinstance(v, str) else v};")
+  for k, v in pal.get("shape", {}).items():
+    lines.append(f"  --themer-{k}: {v}px;")
+  lines.append("}")
+  return "\n".join(lines) + "\n"
+
+
+def fmt_sh(pal, theme):
+  c = resolve(pal, theme)
+  lines = ["# Generated by Themer. Source it: . ~/.cache/themer/colors.sh", f"THEMER_THEME='{pal['meta']['id']}'",
+           f"THEMER_VARIANT='{theme}'"]
+  lines += [f"THEMER_{k.upper().replace('-', '_')}='{v}'" for k, v in c.items()]
+  lines += [f"color{i}='{c[f'ansi-{i}']}'" for i in range(16)]
+  lines += [f"background='{c['bg']}'", f"foreground='{c['text']}'", f"cursor='{c['text']}'"]
+  lines.append("export THEMER_THEME THEMER_VARIANT " + " ".join(f"THEMER_{k.upper().replace('-', '_')}" for k in c))
+  return "\n".join(lines) + "\n"
+
+
+def fmt_pywal(pal, theme):
+  """pywal colors.json, with the extended keys of the original parecolors.json so old templates keep working."""
+  c = resolve(pal, theme)
+  dark = theme == "dark"
+
+  def ramp(hue):
+    L, C, H = hex_to_oklch(c[hue])
+    mid = oklch_to_hex(0.38, C * 0.6, H) if dark else oklch_to_hex(0.87, C * 0.4, H)
+    return [c[f"{hue}-soft"], mid, c[f"{hue}-dim"], mix(c[f"{hue}-dim"], c[hue], 0.5), c[hue]]
+
+  sp = {"background": c["bg"], "foreground": c["text"], "cursor": c["text"]}
+  for i, k in enumerate(("bg-deep", "bg-sunken", "bg", "surface", "surface-raised")):
+    sp[f"black{i + 1}"] = c[k]
+  for i, v in enumerate((c["text-subtle"], c["text-muted"], mix(c["text-muted"], c["text"], 0.5), c["text"],
+                         c["text-bright"])):
+    sp[f"white{i + 1}"] = v
+  greys = (c["surface-hover"], c["surface-active"], oklch_to_hex(0.36 if dark else 0.82, 0.024, 248),
+           oklch_to_hex(0.44 if dark else 0.72, 0.026, 248), c["line-strong"])
+  for i, v in enumerate(greys):
+    sp[f"grey{i + 1}"] = v
+  for hue in ("red", "green", "blue", "yellow", "cyan", "magenta", "orange", "violet"):
+    for i, v in enumerate(ramp(hue)):
+      sp[f"{hue}{i + 1}"] = v
+  sem = {"backgroundAlt": "bg-sunken", "surface": "surface", "surfaceHover": "surface-hover",
+         "overlay": "surface-raised", "accent": "accent", "accentHover": "accent-hover", "accentSubtle": "accent-soft",
+         "textSecondary": "text-muted",
+         "textMuted": "text-subtle", "textDisabled": "text-disabled", "textInverse": "on-accent", "textLink": "link",
+         "border": "line", "borderSubtle": "surface-hover", "borderStrong": "line-strong", "borderFocus": "focus-ring",
+         "selection": "selection", "highlight": "surface-hover", "highlightActive": "surface-active",
+         "success": "success", "warning": "warning", "error": "danger", "info": "info"}
+  for k, v in sem.items():
+    sp[k] = c[v]
+  syn = {"Keyword": "keyword", "String": "string", "Comment": "comment", "Number": "number", "Function": "function",
+         "Class": "class", "Type": "type", "Constant": "constant", "Variable": "variable", "Operator": "operator",
+         "Annotation": "annotation", "DocTag": "doc-tag", "StringEscape": "escape", "Punctuation": "punctuation",
+         "Property": "property", "Tag": "tag", "Attribute": "attribute", "Heading": "heading", "Link": "link",
+         "Url": "url", "Regex": "regex"}
+  for k, v in syn.items():
+    sp["syntax" + k] = c["syntax-" + v]
+  langs = {"Java": ["Keyword", "Annotation", "String", "StringEscape", "Comment", "DocTag", "Number", "Constant",
+                    "Function", "Class", "Type", "Variable", "Operator", "Punctuation", "Property"],
+           "Python": ["Keyword", "String", "Comment", "Number", "Function", "Class", "Operator", "Punctuation",
+                      "Property"],
+           "Shell": ["Keyword", "String", "Comment", "Number", "Function", "Operator", "Punctuation"],
+           "Js": ["Keyword", "String", "Regex", "Comment", "DocTag", "Number", "Constant", "Function", "Class", "Type",
+                  "Property", "Operator", "Punctuation"],
+           "Json": ["String", "Number", "Constant", "Punctuation"],
+           "Css": ["Function", "Comment", "Number", "Punctuation"],
+           "Xml": ["Comment"],
+           "Markdown": ["Heading", "Link", "Url"]}
+  for lang, keys in langs.items():
+    for k in keys:
+      sp[f"syntax{lang}{k}"] = sp["syntax" + k]
+  extra = {"syntaxJavaModifier": "keyword", "syntaxJavaStaticFinal": "constant", "syntaxJavaThisSuper": "keyword",
+           "syntaxJavaImportPackage": "type", "syntaxShellExternalCommand": "function",
+           "syntaxShellVariable": "property",
+           "syntaxShellCommandSubstitution": "string", "syntaxPythonDecorator": "annotation",
+           "syntaxPythonBuiltin": "type", "syntaxPythonByteString": "string", "syntaxJsTemplateInterpolation": "escape",
+           "syntaxJsDecorator": "annotation", "syntaxJsonKey": "property", "syntaxCssSelector": "tag",
+           "syntaxCssPropertyName": "property", "syntaxCssPropertyValue": "variable",
+           "syntaxCssAttributeName": "attribute",
+           "syntaxCssHash": "constant", "syntaxCssImportant": "doc-tag", "syntaxCssPseudo": "annotation",
+           "syntaxCssUrl": "string", "syntaxCssColon": "punctuation", "syntaxCssAtRule": "keyword",
+           "syntaxCssCustomProperty": "property", "syntaxXmlTagName": "tag", "syntaxXmlTag": "punctuation",
+           "syntaxXmlAttributeName": "attribute", "syntaxXmlAttributeValue": "string",
+           "syntaxXmlEntityReference": "escape", "syntaxXmlCustomTagName": "type", "syntaxMarkdownCode": "string",
+           "syntaxMarkdownListMarker": "keyword", "syntaxMarkdownQuote": "comment",
+           "syntaxMarkdownFence": "punctuation", "syntaxMarkdownFenceLang": "annotation"}
+  for k, v in extra.items():
+    sp[k] = c["syntax-" + v]
+  sp["syntaxMarkdownBold"] = c["text-bright"]
+  sp["syntaxMarkdownItalic"] = c["text"]
+  out = {"wallpaper": "", "alpha": "100", "special": sp, "colors": {f"color{i}": c[f"ansi-{i}"] for i in range(16)}}
+  return json.dumps(out, indent=2) + "\n"
+
+
+def fmt_pywal_sh(pal, theme):
+  c = resolve(pal, theme)
+  lines = ["# Generated by Themer (pywal compatible).", "wallpaper=''", f"background='{c['bg']}'",
+           f"foreground='{c['text']}'", f"cursor='{c['text']}'"]
+  lines += [f"color{i}='{c[f'ansi-{i}']}'" for i in range(16)]
+  lines.append("export color0 color1 color2 color3 color4 color5 color6 color7 color8 color9 color10 color11 "
+               "color12 color13 color14 color15 background foreground cursor")
+  return "\n".join(lines) + "\n"
+
+
+def fmt_pywal_css(pal, theme):
+  c = resolve(pal, theme)
+  lines = ["/* Generated by Themer (pywal compatible). */", ":root {", "  --wallpaper: url(\"\");",
+           f"  --background: {c['bg']};", f"  --foreground: {c['text']};", f"  --cursor: {c['text']};"]
+  lines += [f"  --color{i}: {c[f'ansi-{i}']};" for i in range(16)]
+  return "\n".join(lines + ["}"]) + "\n"
+
+
+FORMATS = {"json": fmt_json, "css": fmt_css, "sh": fmt_sh, "pywal": fmt_pywal, "pywal-sh": fmt_pywal_sh,
+           "pywal-css": fmt_pywal_css}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Writing: plain files, KDE ini merges, line ensures, with backups
+# ---------------------------------------------------------------------------------------------------------------------
+
+class Writer:
+  def __init__(self, dry_run=False, verbose=False):
+    self.dry_run = dry_run
+    self.verbose = verbose
+    self.stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    self.backup_root = STATE_DIR / "backups" / self.stamp
+    self.changed = []
+
+  def _backup(self, path):
+    if path.exists():
+      dest = self.backup_root / str(path).lstrip("/")
+      dest.parent.mkdir(parents=True, exist_ok=True)
+      shutil.copy2(path, dest)
+
+  def write(self, path, text):
+    path = Path(path)
+    if path.is_symlink():
+      # A stowed file: write into the dotfiles copy instead of replacing the link.
+      path = Path(os.path.realpath(path))
+    old = path.read_text() if path.exists() else None
+    if old == text:
+      return False
+    self.changed.append(path)
+    if self.dry_run:
+      return True
+    self._backup(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".themer-tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+    return True
+
+  def merge_ini(self, path, fragment):
+    """Sets the keys of an ini fragment in an existing KDE config file, keeping everything else.
+    A value of @delete removes the key."""
+    path = Path(path)
+    text = path.read_text() if path.exists() else ""
+    return self.write(path, merge_ini_text(text, fragment))
+
+  def ensure_lines(self, path, fragment):
+    """Appends each line of fragment that is missing; a line with the same key prefix (up to the first comma or =)
+    is replaced instead."""
+    path = Path(path)
+    lines = path.read_text().splitlines() if path.exists() else []
+    for want in [ln for ln in fragment.splitlines() if ln.strip() and not ln.startswith("//")]:
+      key = re.split(r"[,=]", want, maxsplit=1)[0]
+      idx = next((i for i, ln in enumerate(lines) if ln.startswith(key)), None)
+      if idx is None:
+        lines.append(want)
+      else:
+        lines[idx] = want
+    return self.write(path, "\n".join(lines) + "\n")
+
+
+def parse_ini(text):
+  groups, order, cur = {}, [], None
+  head = []
+  for ln in text.splitlines():
+    if re.match(r"^\[.*\]\s*$", ln):
+      cur = ln.strip()
+      if cur not in groups:
+        groups[cur] = []
+        order.append(cur)
+    elif cur is None:
+      head.append(ln)
+    else:
+      groups[cur].append(ln)
+  return head, groups, order
+
+
+def merge_ini_text(text, fragment):
+  head, groups, order = parse_ini(text)
+  _, fgroups, forder = parse_ini(fragment)
+  for g in forder:
+    lines = groups.setdefault(g, [])
+    if g not in order:
+      order.append(g)
+    for ln in fgroups[g]:
+      if "=" not in ln or ln.lstrip().startswith(("#", ";")):
+        continue
+      key, val = ln.split("=", 1)
+      key = key.strip()
+      idx = next((i for i, x in enumerate(lines) if "=" in x and re.sub(r"\[\$\w+\]$", "", x.split("=", 1)[0].strip())
+                  == key), None)
+      if val.strip() == "@delete":
+        if idx is not None:
+          lines.pop(idx)
+        continue
+      if idx is None:
+        while lines and not lines[-1].strip():
+          lines.pop()
+        lines.append(f"{key}={val}")
+      else:
+        lines[idx] = f"{key}={val}"
+  out = list(head)
+  for g in order:
+    body = groups[g]
+    while body and not body[-1].strip():
+      body.pop()
+    if out and out[-1].strip():
+      out.append("")
+    out.append(g)
+    out += body
+  return "\n".join(out).strip("\n") + "\n"
+
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Targets
+# ---------------------------------------------------------------------------------------------------------------------
+
+def firefox_profile(pal):
+  """The default Firefox profile: $THEMER_FIREFOX_PROFILE, [firefox] profile in settings.toml, or detected."""
+  forced = os.environ.get("THEMER_FIREFOX_PROFILE") or settings().get("firefox", {}).get("profile")
+  if forced:
+    p = Path(os.path.expanduser(forced))
+    return p if p.is_dir() else None
+  roots = [HOME / ".config/mozilla/firefox", HOME / ".mozilla/firefox", HOME / "snap/firefox/common/.mozilla/firefox",
+           HOME / ".var/app/org.mozilla.firefox/.mozilla/firefox",
+           HOME / ".var/app/org.mozilla.firefox/config/mozilla/firefox"]
+  for root in roots:
+    ini = root / "profiles.ini"
+    if not ini.exists():
+      continue
+    _, groups, _ = parse_ini(ini.read_text())
+
+    def kv(g):
+      return dict(ln.split("=", 1) for ln in groups.get(g, []) if "=" in ln)
+    for g in groups:
+      if g.startswith("[Install"):
+        d = kv(g).get("Default")
+        if d:
+          p = Path(d) if d.startswith("/") else root / d
+          if p.is_dir():
+            return p
+    for g in groups:
+      v = kv(g)
+      if g.startswith("[Profile") and v.get("Default") == "1":
+        p = root / v["Path"] if v.get("IsRelative", "1") == "1" else Path(v["Path"])
+        if p.is_dir():
+          return p
+  return None
+
+
+def load_targets():
+  """The shipped targets, then ~/.config/themer/targets.toml on top: a user target with the name of a shipped one
+  replaces it (enabled = false turns it off), any other name is added at the end."""
+  targets = {t["name"]: t for t in load_toml(SELF_DIR / "targets.toml").get("target", [])}
+  for d in user_dirs():
+    if (d / "targets.toml").exists():
+      for t in load_toml(d / "targets.toml").get("target", []):
+        targets[t["name"]] = t
+      break
+  return list(targets.values())
+
+
+def template_path(name, pal):
+  """User templates override the theme's own, which override the shipped ones."""
+  for d in (*[u / "templates" for u in user_dirs()], pal["_dir"] / "templates", SELF_DIR / "templates"):
+    if (d / name).exists():
+      return d / name
+  die(f"template {name} not found")
+
+
+def expand_path(p, ctx, pal):
+  p = render(p, ctx, "output path")
+  if "{firefox}" in p:
+    prof = firefox_profile(pal)
+    if not prof:
+      return None
+    p = p.replace("{firefox}", str(prof))
+  return Path(os.path.expanduser(p))
+
+
+def run_reload(action, ctx, quiet=False):
+  def have(cmd):
+    return shutil.which(cmd) is not None
+
+  def sh(*cmd):
+    if not quiet:
+      print("  $ " + " ".join(cmd))
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  if action == "kde-colors":
+    scheme = ctx["scheme"]
+    kdeglobals = HOME / ".config/kdeglobals"
+    current = None
+    if kdeglobals.exists():
+      _, g, _ = parse_ini(kdeglobals.read_text())
+      current = next((ln.split("=", 1)[1] for ln in g.get("[General]", []) if ln.startswith("ColorScheme=")), None)
+    if current != scheme and have("plasma-apply-colorscheme"):
+      sh("plasma-apply-colorscheme", scheme)
+    else:
+      src = HOME / f".local/share/color-schemes/{scheme}.colors"
+      if src.exists():
+        _, g, order = parse_ini(src.read_text())
+        keep = [k for k in order if k.startswith(("[Colors:", "[ColorEffects:", "[WM]"))]
+        frag = "\n".join(k + "\n" + "\n".join(g[k]) for k in keep) + f"\n[General]\nColorScheme={scheme}\n"
+        Writer().merge_ini(kdeglobals, frag)
+        if have("dbus-send"):
+          sh("dbus-send", "--session", "--type=signal", "/KGlobalSettings", "org.kde.KGlobalSettings.notifyChange",
+             "int32:0", "int32:0")
+  elif action == "kwin":
+    if have("dbus-send"):
+      sh("dbus-send", "--session", "--type=method_call", "--dest=org.kde.KWin", "/KWin", "org.kde.KWin.reconfigure")
+  elif action == "kde-style":
+    if have("dbus-send"):
+      sh("dbus-send", "--session", "--type=signal", "/KGlobalSettings", "org.kde.KGlobalSettings.notifyChange",
+         "int32:2", "int32:0")
+  elif action == "gtk":
+    if have("gsettings"):
+      sh("gsettings", "set", "org.gnome.desktop.interface", "color-scheme",
+         "prefer-dark" if ctx["variant"] == "dark" else "default")
+  elif action:
+    if not quiet:
+      print(f"  $ {action}")
+    subprocess.run(action, shell=True)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# State: which theme and variant are applied
+# ---------------------------------------------------------------------------------------------------------------------
+
+def read_state():
+  f = STATE_DIR / "current.json"
+  if f.exists():
+    try:
+      return json.loads(f.read_text())
+    except json.JSONDecodeError:
+      pass
+  return {}
+
+
+def write_state(theme, variant):
+  STATE_DIR.mkdir(parents=True, exist_ok=True)
+  (STATE_DIR / "current.json").write_text(json.dumps({"theme": theme, "variant": variant}) + "\n")
+
+
+def pick(args, need_variant=True):
+  """Works out the theme and variant from --theme (pare or pare:light), --variant, the current state, settings."""
+  state = read_state()
+  ref = getattr(args, "theme", None) or state.get("theme") or settings().get("default-theme") or "pare"
+  variant = getattr(args, "variant", None)
+  if ":" in ref and not Path(ref).exists():
+    ref, variant = ref.split(":", 1)
+  pal = load_theme(ref)
+  if not variant and state.get("theme") == pal["meta"]["id"]:
+    variant = state.get("variant")
+  if not variant or variant not in variants_of(pal):
+    variant = pal["meta"]["default-variant"]
+  return pal, variant
+
+
+def prune_backups(keep=15):
+  root = STATE_DIR / "backups"
+  if root.exists():
+    runs = sorted(p for p in root.iterdir() if p.is_dir())
+    for p in runs[:-keep]:
+      shutil.rmtree(p, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Dotfiles: generated files that belong in the dotfiles repo are written there and linked with stow
+# ---------------------------------------------------------------------------------------------------------------------
+
+DEFAULT_STOW = "stow --no-folding --dir={dotfiles} --target={home} ."
+
+
+def stow(dry_run=False):
+  """Runs the configured stow command. Returns True when it succeeded or nothing needed doing."""
+  df = dotfiles_dir()
+  if not df:
+    return True
+  cmd = settings().get("dotfiles", {}).get("stow", DEFAULT_STOW)
+  if not cmd:
+    return True
+  cmd = cmd.replace("{dotfiles}", shlex.quote(str(df))).replace("{home}", shlex.quote(str(HOME)))
+  if dry_run:
+    print(f"would run: {cmd}")
+    return True
+  if not shutil.which("stow") and cmd.startswith("stow"):
+    print("stow is not installed (sudo apt install stow); files were written to the dotfiles folder but not linked")
+    return False
+  print(f"  $ {cmd}")
+  res = subprocess.run(cmd, shell=True, cwd=df, capture_output=True, text=True)
+  if res.returncode != 0:
+    print(res.stderr.strip() or res.stdout.strip())
+    print("stow failed: files are in the dotfiles folder but some links were not made. Fix the conflicts above and "
+          "run `themer apply` again.")
+    return False
+  return True
+
+
+def adopt(out, dest, dry_run):
+  """Keeps a hand-written file Themer is about to replace (an old userChrome.css) as a disabled snippet."""
+  if not out.is_file() or "Generated by Themer" in out.read_text(errors="replace") or dest.exists():
+    return
+  if dry_run:
+    print(f"would keep your {out.name} as {dest}")
+    return
+  dest.parent.mkdir(parents=True, exist_ok=True)
+  shutil.copy2(out, dest)
+  print(f"kept your {out.name} as {dest} (disabled; drop the leading _ to load it on top of the theme)")
+
+
+def link_missing(pairs):
+  """After stow: links any of Themer's own files stow did not, the same relative way stow would, so the desktop
+  is themed even when stow stopped on an unrelated conflict. Returns True if everything is linked."""
+  ok = True
+  for home_path, df_path in pairs:
+    if os.path.realpath(home_path) == os.path.realpath(df_path):
+      continue
+    if home_path.exists() or home_path.is_symlink():
+      print(f"not linked: {home_path} exists and is not a Themer file")
+      ok = False
+      continue
+    home_path.parent.mkdir(parents=True, exist_ok=True)
+    os.symlink(os.path.relpath(df_path, os.path.realpath(home_path.parent)), home_path)
+    print(f"linked {home_path} -> {df_path} (stow did not)")
+  return ok
+
+
+def clear_for_stow(w, home_path, df_path):
+  """Makes room for stow's link at home_path. Only used on files Themer generates; the old file is backed up."""
+  if not (home_path.exists() or home_path.is_symlink()):
+    return
+  if os.path.realpath(home_path) == os.path.realpath(df_path):
+    return
+  if w.dry_run:
+    print(f"would replace {home_path} with a link to {df_path}")
+    return
+  if home_path.is_symlink():
+    home_path.unlink()
+  elif home_path.is_file():
+    w._backup(home_path)
+    home_path.unlink()
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# apply
+# ---------------------------------------------------------------------------------------------------------------------
+
+def cmd_apply(args):
+  pal, variant = pick(args)
+  tid = pal["meta"]["id"]
+  problems = validate(pal)
+  if problems and not args.force:
+    die(f"theme {tid} does not fill the token contract:\n  " + "\n  ".join(problems) + "\n(--force to apply anyway)")
+  only = set(args.only.split(",")) if args.only else None
+  w = Writer(dry_run=args.dry_run)
+  state = read_state()
+  switched = state.get("theme") != tid or state.get("variant") != variant
+  ctxs = {v: context(pal, v) for v in variants_of(pal)}
+  reloads, skipped, stowed = [], [], []
+  df = dotfiles_dir()
+  for t in load_targets():
+    if only and t.get("group", "misc") not in only and t.get("name") not in only:
+      continue
+    if t.get("enabled", True) is False:
+      continue
+    vs = variants_of(pal) if t.get("variants", "active") == "all" else (variant,)
+    for v in vs:
+      ctx = ctxs[v]
+      out = expand_path(t["output"], ctx, pal)
+      if out is None:
+        skipped.append(f"{t['name']} (no Firefox profile found)")
+        break
+      shown = out
+      if df and t.get("dotfiles") and home_rel(out) is not None:
+        stowed.append((out, df / home_rel(out)))
+        out = df / home_rel(out)
+        shown = f"{out} (stowed to {stowed[-1][0]})"
+      if t.get("adopt"):
+        adopt(out, user_dir() / t["adopt"], args.dry_run)
+      if "format" in t:
+        text = FORMATS[t["format"]](pal, v)
+      else:
+        text = render(template_path(t["template"], pal).read_text(), ctx, t["template"])
+      mode = t.get("mode", "write")
+      if mode == "merge-ini":
+        changed = w.merge_ini(out, text)
+      elif mode == "ensure-lines":
+        changed = w.ensure_lines(out, text)
+      else:
+        changed = w.write(out, text)
+      if changed:
+        print(f"{'would write' if args.dry_run else 'wrote'} {shown}")
+      if t.get("reload") and (changed or args.force or switched) and v == variant:
+        reloads.append(t["reload"])
+  linked = True
+  if stowed:
+    for home_path, df_path in stowed:
+      clear_for_stow(w, home_path, df_path)
+    missing = [h for h, d in stowed if os.path.realpath(h) != os.path.realpath(d)]
+    in_df = any(os.path.realpath(p).startswith(os.path.realpath(df) + os.sep) for p in w.changed)
+    if missing or in_df or args.force:
+      linked = stow(dry_run=args.dry_run)
+      if not args.dry_run:
+        linked = link_missing(stowed) and linked
+  if not args.dry_run:
+    write_state(tid, variant)
+    for action in dict.fromkeys(reloads):
+      run_reload(action, ctxs[variant])
+    prune_backups()
+  for s in skipped:
+    print(f"skipped {s}")
+  label = f"{pal['meta']['name']} {variant}"
+  if not w.changed:
+    print(f"{label}: everything already up to date")
+  elif not args.dry_run:
+    print(f"\n{label}: {len(w.changed)} files updated. Backups: {w.backup_root}")
+    notes = []
+    if any("mozilla" in str(p) for p in w.changed):
+      notes.append("restart Firefox")
+    if any(p.name in ("darklyrc", "kdeglobals") for p in w.changed):
+      notes.append("restart open Qt apps to pick up style and font changes")
+    if any(p.suffix == ".theme" for p in w.changed):
+      notes.append("reopen Kate/KWrite")
+    if notes:
+      print("Next: " + "; ".join(notes) + ".")
+  if not linked:
+    sys.exit(1)
+
+
+def cmd_mode(args):
+  state = read_state()
+  if not state.get("theme"):
+    die("nothing applied yet; run themer apply --theme <name> first")
+  pal = load_theme(state["theme"])
+  cur = state.get("variant", pal["meta"]["default-variant"])
+  vs = variants_of(pal)
+  if args.mode == "toggle":
+    if len(vs) < 2:
+      die(f"theme {state['theme']} only has a {vs[0]} variant")
+    new = vs[(vs.index(cur) + 1) % len(vs)] if cur in vs else vs[0]
+  else:
+    new = args.mode
+  args.theme, args.variant = state["theme"], new
+  cmd_apply(args)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Theme commands
+# ---------------------------------------------------------------------------------------------------------------------
+
+def cmd_themes(args):
+  state = read_state()
+  rows = []
+  for tid, path in sorted(all_themes().items()):
+    try:
+      pal = load_theme(str(path))
+    except SystemExit as e:
+      rows.append((tid, "", "", f"broken: {e}", ""))
+      continue
+    m = pal["meta"]
+    where = "bundled"
+    if is_user_path(path):
+      where = "edited" if (SELF_DIR / "themes" / tid / "theme.toml").exists() else "user"
+    mark = "*" if state.get("theme") == tid else " "
+    rows.append((f"{mark} {tid}", m["name"], "/".join(m["variants"]), m.get("description", ""), where))
+  if not rows:
+    print("no themes installed")
+    return
+  w = [max(len(r[i]) for r in rows) for i in range(3)]
+  for r in rows:
+    print(f"{r[0]:<{w[0]}}  {r[1]:<{w[1]}}  {r[2]:<{w[2]}}  {r[4]:<8} {r[3]}")
+  if state.get("theme"):
+    print(f"\n* applied: {state['theme']} {state.get('variant', '')}")
+
+
+def cmd_current(args):
+  s = read_state()
+  print(f"{s['theme']} {s.get('variant', '')}" if s.get("theme") else "nothing applied yet")
+
+
+def user_copy(tid):
+  """Makes sure a theme lives in ~/.config/themer/themes so it can be edited. Returns its theme.toml."""
+  dest = user_dir() / "themes" / tid
+  if (dest / "theme.toml").exists():
+    return dest / "theme.toml"
+  src = theme_path(tid).parent
+  shutil.copytree(src, dest)
+  stow()
+  print(f"copied {tid} to {dest} for editing (the bundled copy stays untouched)")
+  return dest / "theme.toml"
+
+
+def cmd_edit(args):
+  path = user_copy(args.theme or read_state().get("theme") or die("which theme? themer edit <name>"))
+  editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+  if editor and not args.print:
+    subprocess.run([*editor.split(), str(path)])
+  else:
+    print(path)
+
+
+def cmd_new(args):
+  if not ID_RE.match(args.id):
+    die("theme ids are lowercase letters, digits, - and _")
+  dest = user_dir() / "themes" / args.id
+  if dest.exists():
+    die(f"{dest} already exists")
+  src = theme_path(args.base).parent
+  shutil.copytree(src, dest, ignore=shutil.ignore_patterns("README.md", "preview*"))
+  path = dest / "theme.toml"
+  text = path.read_text()
+  name = args.name or args.id.replace("-", " ").title()
+  text = re.sub(r'(?m)^id = ".*"$', f'id = "{args.id}"', text, count=1)
+  text = re.sub(r'(?m)^name = ".*"$', f'name = "{name}"', text, count=1)
+  text = re.sub(r'(?m)^description = ".*"$', f'description = "Based on {args.base}"', text, count=1)
+  path.write_text(text)
+  stow()
+  print(f"created {path}\nEdit it, then: themer check --theme {args.id} && themer apply --theme {args.id}")
+
+
+def cmd_install(args):
+  src = Path(os.path.expanduser(args.source))
+  if src.is_file() and src.suffix == ".zip":
+    import zipfile
+    import tempfile
+    tmp = Path(tempfile.mkdtemp(prefix="themer-"))
+    with zipfile.ZipFile(src) as z:
+      for n in z.namelist():
+        if n.startswith("/") or ".." in Path(n).parts:
+          die(f"refusing unsafe path in zip: {n}")
+      z.extractall(tmp)
+    found = list(tmp.rglob("theme.toml"))
+    if len(found) != 1:
+      die(f"expected one theme.toml in {src}, found {len(found)}")
+    src = found[0].parent
+  elif src.is_file() and src.name.endswith(".toml"):
+    src = src.parent if src.name == "theme.toml" else src
+  if src.is_file():
+    data = load_toml(src)
+    tid = args.id or data.get("meta", {}).get("id") or src.stem
+    dest = user_dir() / "themes" / tid
+    dest.mkdir(parents=True, exist_ok=bool(args.replace))
+    shutil.copy2(src, dest / "theme.toml")
+  else:
+    if not (src / "theme.toml").exists():
+      die(f"{src} has no theme.toml")
+    tid = args.id or load_toml(src / "theme.toml").get("meta", {}).get("id") or src.name
+    dest = user_dir() / "themes" / tid
+    if dest.exists():
+      if not args.replace:
+        die(f"{tid} is already installed at {dest} (--replace to overwrite)")
+      shutil.rmtree(dest)
+    shutil.copytree(src, dest)
+  if not ID_RE.match(tid):
+    die(f"bad theme id {tid!r}")
+  stow()
+  pal = load_theme(str(dest / "theme.toml"))
+  problems = validate(pal)
+  print(f"installed {tid} -> {dest}")
+  print("contract: ok" if not problems else "contract problems:\n  " + "\n  ".join(problems))
+
+
+def cmd_remove(args):
+  dest = user_dir() / "themes" / args.id
+  if not dest.exists():
+    die(f"{args.id} is not a user theme (bundled themes cannot be removed)")
+  shutil.rmtree(dest)
+  link = CONFIG_DIR / "themes" / args.id
+  if link.is_symlink():
+    link.unlink()
+  print(f"removed {dest}" + (" (the bundled copy is used again)" if (SELF_DIR / "themes" / args.id).exists() else ""))
+
+
+def cmd_validate(args):
+  pal, _ = pick(args)
+  problems = validate(pal)
+  m = pal["meta"]
+  print(f"{m['id']} ({m['name']}), variants: {', '.join(m['variants'])}, file: {pal['_path']}")
+  req = contract().get("required", {})
+  total = sum(len(v) for v in req.values())
+  if problems:
+    print("\n".join("  " + p for p in problems))
+    sys.exit(1)
+  print(f"  all {total} required tokens resolve in every variant")
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Inspecting and editing colors
+# ---------------------------------------------------------------------------------------------------------------------
+
+CHECKS = [
+  # (foregrounds, grounds, minimum ratio)
+  (("text", "text-muted", "text-subtle"),
+   ("bg-deep", "bg-sunken", "bg", "surface", "surface-raised", "surface-hover"), 4.5),
+  (("text-faint",), ("bg", "bg-sunken", "surface"), 4.5),
+  (HUES, ("bg", "bg-sunken", "surface"), 4.5),
+  (("line-strong",), ("bg", "bg-sunken", "surface"), 3.0),
+  (("focus-ring",), ("bg-deep", "bg-sunken", "bg", "surface", "surface-raised"), 3.0),
+  (("text",), ("selection", "accent-soft", "surface-active"), 4.5),
+]
+
+
+def cmd_check(args):
+  pal, _ = pick(args)
+  fails = 0
+  print(f"{pal['meta']['name']}")
+  for v in variants_of(pal):
+    c = resolve(pal, v)
+    rows = []
+    for fgs, grounds, need in CHECKS:
+      for fg in fgs:
+        for g in grounds:
+          if fg in c and g in c:
+            r = contrast(c[fg], c[g])
+            if r < need:
+              rows.append(f"  {fg:<12} {c[fg]} on {g:<15} {c[g]}  {r:4.2f} < {need}")
+    for hue in HUES:
+      if hue in c and f"{hue}-soft" in c and contrast(c[hue], c[f"{hue}-soft"]) < 4.5:
+        rows.append(f"  {hue} on {hue}-soft  {contrast(c[hue], c[hue + '-soft']):4.2f} < 4.5")
+      if hue in c and "on-accent" in c and contrast(c["on-accent"], c[hue]) < 4.5:
+        rows.append(f"  on-accent on {hue}  {contrast(c['on-accent'], c[hue]):4.2f} < 4.5")
+    fails += len(rows)
+    print(f"  {v}: " + ("all pairs pass" if not rows else f"{len(rows)} pairs below target"))
+    if rows:
+      print("\n".join(rows))
+  sys.exit(1 if fails else 0)
+
+
+def cmd_show(args):
+  pal, variant = pick(args)
+  c = resolve(pal, variant)
+
+  def sw(h, label):
+    r, g, b = (round(x * 255) for x in hex_to_rgb(h))
+    fg = "0;0;0" if luminance(h) > 0.2 else "255;255;255"
+    return f"\x1b[48;2;{r};{g};{b}m\x1b[38;2;{fg}m {label:<16}\x1b[0m"
+
+  groups = [["bg-deep", "bg-sunken", "bg", "surface", "surface-raised", "surface-hover", "surface-active", "line",
+             "line-strong"], ["text-disabled", "text-faint", "text-subtle", "text-muted", "text", "text-bright"]]
+  groups += [[h, f"{h}-bright", f"{h}-dim", f"{h}-soft"] for h in HUES]
+  groups.append([f"ansi-{i}" for i in range(8)])
+  groups.append([f"ansi-{i}" for i in range(8, 16)])
+  print(f"{pal['meta']['name']} {variant}")
+  for grp in groups:
+    print("".join(sw(c[k], k) for k in grp if k in c))
+
+
+def cmd_get(args):
+  pal, variant = pick(args)
+  ctx = context(pal, variant)
+  expr = args.token if args.token.startswith("{{") else "{{ " + args.token + " }}"
+  print(render(expr, ctx, "themer get"))
+
+
+def cmd_tokens(args):
+  pal, variant = pick(args)
+  for k, v in resolve(pal, variant).items():
+    print(f"{k:<22} {v}")
+
+
+def cmd_set(args):
+  """Changes one value in the theme's theme.toml in place, keeping comments. Bundled themes are copied first."""
+  pal, variant = pick(args)
+  if parse_color(args.value) is None and not ALIAS_RE.match(args.value):
+    die("value must be #rrggbb, oklch(L C H) or {token}")
+  path = pal["_path"] if is_user_path(pal["_path"]) else user_copy(pal["meta"]["id"])
+  lines = path.read_text().splitlines()
+  target = args.section or variant
+  section, done = None, False
+  for i, ln in enumerate(lines):
+    m = re.match(r"^\[([\w.-]+)\]", ln)
+    if m:
+      section = m.group(1)
+      continue
+    if section == target and re.match(rf"^{re.escape(args.token)}\s*=", ln):
+      cm = re.match(r'^[^=]+=\s*(?:"(?:[^"\\]|\\.)*"|[^#\s]*)\s*(#.*)?$', ln)
+      comment = cm.group(1) if cm and cm.group(1) else ""
+      lines[i] = f'{args.token} = "{args.value}"' + (f"  {comment}" if comment else "")
+      done = True
+      break
+  if not done:
+    idx = next((i for i, ln in enumerate(lines) if ln.strip() == f"[{target}]"), None)
+    if idx is None:
+      lines += ["", f"[{target}]"]
+      idx = len(lines) - 1
+    lines.insert(idx + 1, f'{args.token} = "{args.value}"')
+  path.write_text("\n".join(lines) + "\n")
+  print(f"{pal['meta']['id']} [{target}] {args.token} = {args.value}  ({path})")
+
+
+def cmd_undo(args):
+  root = STATE_DIR / "backups"
+  runs = sorted(p for p in root.iterdir() if p.is_dir()) if root.exists() else []
+  if not runs:
+    die("no backups yet")
+  run = runs[-1]
+  for f in run.rglob("*"):
+    if f.is_file():
+      dest = Path("/") / f.relative_to(run)
+      print(f"restore {dest}")
+      if not args.dry_run:
+        shutil.copy2(f, dest)
+  if not args.dry_run:
+    shutil.rmtree(run)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Import a design system's tokens.json as a theme
+# ---------------------------------------------------------------------------------------------------------------------
+
+SECTION_TITLES = {"bg": "Grounds, deepest to highest", "surface": "Surfaces", "line": "Lines",
+                  "text": "Text, brightest last", "red": "Red", "orange": "Orange", "yellow": "Yellow",
+                  "green": "Green", "cyan": "Cyan", "blue": "Blue", "violet": "Violet", "magenta": "Magenta",
+                  "on": "Text on solid hue fills", "selection": "Selection", "ansi": "Terminal colors 0 to 15"}
+
+
+def theme_toml_from_tokens(tk, tid, name, description):
+  """theme.toml text from a design system tokens.json (lists of {name, value: {dark, light}, usage})."""
+  toks = tk["color"]["tokens"]
+  variants = [t["id"] for t in tk["color"].get("themes", [{"id": "dark"}]) if t["id"] in VARIANTS]
+  out = [THEME_HEADER.format(name=name, id=tid),
+         "[meta]", f'id = "{tid}"', f'name = "{name}"', f'description = "{description}"', 'version = "1.0.0"',
+         f"variants = {json.dumps(variants)}", f'default-variant = "{variants[0]}"', ""]
+  fams = tk.get("type", {}).get("families", {})
+
+  def first_family(stack):
+    m = re.match(r'\s*"?([^",]+)"?', stack or "")
+    return m.group(1).strip() if m else None
+  styles = {st["name"]: st for g in tk.get("type", {}).get("groups", []) for st in g.get("styles", [])}
+  out += ["[fonts]", f'sans = "{first_family(fams.get("sans")) or "Noto Sans"}"',
+          f'mono = "{first_family(fams.get("mono")) or "Hack"}"']
+  try:
+    ui = int(float(str(styles["body"]["fontWeight"]).split()[0]))
+    out += [f"ui-weight = {ui}            # from the design system's body style",
+            f"title-weight = {min(ui + 100, 700)}"]
+  except (KeyError, ValueError):
+    pass
+  out.append("")
+  radii = {t["name"]: t["value"] for t in tk.get("radius", {}).get("tokens", [])}
+  if radii:
+    out.append("[shape]")
+    for k in ("radius-xs", "radius-sm", "radius-md", "radius-lg"):
+      if k in radii:
+        out.append(f"{k} = {int(float(str(radii[k]).rstrip('px')))}")
+    out.append("")
+
+  def val(t, v):
+    return t["value"].get(v) if isinstance(t["value"], dict) else t["value"]
+  common = [t for t in toks if all(str(val(t, v)).startswith("{") and val(t, v) == val(t, variants[0])
+                                   for v in variants)]
+  names = {t["name"] for t in common}
+  out.append("# Roles: what each color is for. A variant table can override any of them.\n[roles]")
+  out += [f'{t["name"]} = "{val(t, variants[0])}"' for t in common]
+  for v in variants:
+    out.append(f"\n[{v}]")
+    cur = None
+    for t in toks:
+      if t["name"] in names:
+        continue
+      x = val(t, v)
+      if t["name"].startswith("ansi-") or t["name"] == "text-inverse":
+        same = next((o["name"] for o in toks if o["name"] not in names
+                     and not o["name"].startswith(("ansi-", "text-inverse")) and val(o, v) == x), None)
+        x = f"{{{same}}}" if same else x
+      grp = "ansi" if t["name"].startswith("ansi-") else t["name"].split("-")[0]
+      if grp != cur:
+        cur = grp
+        out.append(f"# {SECTION_TITLES.get(grp, grp)}")
+      out.append(f'{t["name"]} = "{x}"')
+  return "\n".join(out) + "\n"
+
+
+THEME_HEADER = """# {name}: a Themer theme.
+#
+#   themer apply --theme {id}             apply it (themer apply --theme {id}:light for the light variant)
+#   themer check --theme {id}             contrast report
+#   themer validate --theme {id}          check it fills the token contract (contract.toml)
+#
+# Values: "#rrggbb", "oklch(L C H)" (L 0..1, C about 0..0.37, H degrees), or "{{other-token}}".
+# Anything left out falls back to defaults.toml: roles, syntax colors, terminal colors, fonts, shapes.
+# Each hue may also define -bright, -dim and -soft; leave them out and Themer derives them from the base hue.
+"""
+
+
+def cmd_import(args):
+  tk = json.load(open(os.path.expanduser(args.tokens)))
+  tid = args.id
+  if not ID_RE.match(tid):
+    die("theme ids are lowercase letters, digits, - and _")
+  name = args.name or tk.get("name") or tid.title()
+  text = theme_toml_from_tokens(tk, tid, name, args.description or f"Imported from {Path(args.tokens).name}")
+  if args.output == "-":
+    sys.stdout.write(text)
+    return
+  dest = Path(args.output) if args.output else user_dir() / "themes" / tid / "theme.toml"
+  if dest.exists() and not args.replace:
+    die(f"{dest} exists (--replace to overwrite)")
+  if dest.exists():
+    text = keep_settings(text, load_toml(dest))
+  dest.parent.mkdir(parents=True, exist_ok=True)
+  dest.write_text(text)
+  stow()
+  print(f"wrote {dest}")
+
+
+def keep_settings(text, old):
+  """On --replace, carries over keys of the old theme's non-color tables (fonts, shape, kde, konsole, firefox)
+  that the import does not set, such as fonts.ui-weight."""
+  new = tomllib.loads(text)
+  for table, values in old.items():
+    if table in VARIANTS or table in ("roles", "meta") or not isinstance(values, dict):
+      continue
+    extra = {k: v for k, v in values.items() if k not in new.get(table, {}) and not isinstance(v, dict)}
+    if not extra:
+      continue
+    lines = [f"{k} = {json.dumps(v)}" for k, v in extra.items()]
+    m = re.search(rf"(?m)^\[{re.escape(table)}\]\n(?:[^\[\n].*\n|\n)*?(?=\n|\[|\Z)", text)
+    if m:
+      text = text[:m.end()] + "\n".join(lines) + "\n" + text[m.end():]
+    else:
+      text = text.replace("\n# Roles:", f"\n[{table}]\n" + "\n".join(lines) + "\n\n# Roles:", 1)
+  return text
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------------------------------------------------
+
+def cmd_stow(args):
+  if not dotfiles_dir():
+    die("dotfiles are off ([dotfiles] enabled = false in settings.toml)")
+  sys.exit(0 if stow(dry_run=args.dry_run) else 1)
+
+
+def cmd_screens(args):
+  print("Recommended Plasma scale per screen (logical px look the same at each viewing distance):")
+  print("  27\" 2560x1440 desk    100%   2560x1440  comfortable")
+  print("  32\" 3840x2160 dock    150%   2560x1440  comfortable")
+  print("  14\" 1920x1200 T14     125%   1536x960   compact\n")
+  if shutil.which("kscreen-doctor"):
+    res = subprocess.run(["kscreen-doctor", "-o"], capture_output=True, text=True)
+    names = re.findall(r"Output:\s+\d+\s+(\S+)", re.sub(r"\x1b\[[0-9;]*m", "", res.stdout))
+    if names:
+      print("Your outputs: " + ", ".join(names))
+      print("Set a scale with, for example:")
+      for n in names:
+        print(f"  kscreen-doctor output.{n}.scale.1.5")
+  else:
+    print("kscreen-doctor not found; set scales in System Settings > Display Configuration.")
+
+
+def cmd_doctor(args):
+  state = read_state()
+  print(f"themer    {SELF_DIR}")
+  print(f"config    {CONFIG_DIR}" + (f" -> {os.path.realpath(CONFIG_DIR)}" if CONFIG_DIR.is_symlink() else ""))
+  df = dotfiles_dir()
+  if df:
+    ign = df / ".stow-local-ignore"
+    ignored = ign.exists() and any(ln.strip().startswith("^/" + SELF_DIR.name) for ln in ign.read_text().splitlines())
+    print(f"dotfiles  {df} (user files in {user_dir()})")
+    print(f"          stow: {settings().get('dotfiles', {}).get('stow', DEFAULT_STOW)}")
+    if home_rel(SELF_DIR.parent) is not None and SELF_DIR.parent == df and not ignored:
+      print(f"          warning: add ^/{SELF_DIR.name} to {ign} so stow does not link the tool itself into ~")
+  else:
+    print("dotfiles  off ([dotfiles] in settings.toml)")
+  extra = next((d / "targets.toml" for d in user_dirs() if (d / "targets.toml").exists()), None)
+  print(f"targets   {SELF_DIR / 'targets.toml'}" + (f" + {extra}" if extra else ""))
+  print(f"themes    {', '.join(sorted(all_themes())) or 'none'}")
+  print(f"applied   {state.get('theme', 'nothing yet')} {state.get('variant', '')}")
+  pal, _ = pick(args)
+  prof = firefox_profile(pal)
+  print(f"firefox   {prof or 'no profile found (set [firefox] profile in ~/.config/themer/settings.toml)'}")
+  for cmd in ("plasma-apply-colorscheme", "dbus-send", "gsettings", "konsole", "kscreen-doctor"):
+    print(f"{cmd:<26}{'ok' if shutil.which(cmd) else 'missing'}")
+  styles = [Path(p) for p in ("/usr/lib/x86_64-linux-gnu/qt6/plugins/styles", "/usr/lib/qt6/plugins/styles",
+                              "/usr/lib64/qt6/plugins/styles")]
+  darkly = any(p.exists() and any("darkly" in f.name.lower() for f in p.iterdir()) for p in styles)
+  print(f"{'Darkly widget style':<26}{'ok' if darkly else 'not found (the KDE targets expect Darkly)'}")
+  fonts = ""
+  if shutil.which("fc-list"):
+    fonts = subprocess.run(["fc-list", ":", "family"], capture_output=True, text=True).stdout
+  for fam in dict.fromkeys((pal["fonts"]["sans"], pal["fonts"]["mono"])):
+    print(f"{fam:<26}{'ok' if fam in fonts else 'not installed'}")
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+def main():
+  ap = argparse.ArgumentParser(prog="themer", description="Install a design system into every app on the desktop.")
+  ap.add_argument("--version", action="version", version=f"themer {VERSION}")
+  sub = ap.add_subparsers(dest="cmd", required=True, metavar="command")
+
+  def theme_opts(p, variant=True):
+    p.add_argument("-t", "--theme", help="theme id, folder or theme.toml; id:variant also works (default: current)")
+    if variant:
+      p.add_argument("-v", "--variant", choices=VARIANTS, help="default: current, else the theme's default")
+
+  p = sub.add_parser("apply", help="render every target for a theme and reload")
+  theme_opts(p)
+  p.add_argument("--only", help="comma separated groups or target names (kde, konsole, kate, gtk, firefox, exports)")
+  p.add_argument("--dry-run", action="store_true", help="list what would change, write nothing")
+  p.add_argument("--force", action="store_true", help="reload even if nothing changed; apply despite contract gaps")
+  p.set_defaults(fn=cmd_apply)
+
+  p = sub.add_parser("mode", help="switch the current theme's variant: dark, light or toggle")
+  p.add_argument("mode", choices=("dark", "light", "toggle"))
+  p.add_argument("--only")
+  p.add_argument("--dry-run", action="store_true")
+  p.add_argument("--force", action="store_true")
+  p.set_defaults(fn=cmd_mode)
+
+  p = sub.add_parser("themes", help="list installed themes")
+  p.set_defaults(fn=cmd_themes)
+  p = sub.add_parser("current", help="print the applied theme and variant")
+  p.set_defaults(fn=cmd_current)
+
+  p = sub.add_parser("new", help="start a theme from an existing one: themer new mytheme --from pare")
+  p.add_argument("id")
+  p.add_argument("--from", dest="base", default="pare")
+  p.add_argument("--name")
+  p.set_defaults(fn=cmd_new)
+
+  p = sub.add_parser("install", help="install a theme from a folder, theme.toml or .zip")
+  p.add_argument("source")
+  p.add_argument("--id")
+  p.add_argument("--replace", action="store_true")
+  p.set_defaults(fn=cmd_install)
+
+  p = sub.add_parser("remove", help="remove a user-installed theme")
+  p.add_argument("id")
+  p.set_defaults(fn=cmd_remove)
+
+  p = sub.add_parser("edit", help="open a theme's theme.toml (copies a bundled theme to your config first)")
+  p.add_argument("theme", nargs="?")
+  p.add_argument("--print", action="store_true", help="only print the path")
+  p.set_defaults(fn=cmd_edit)
+
+  p = sub.add_parser("import", help="make a theme from a design system tokens.json")
+  p.add_argument("tokens")
+  p.add_argument("--id", required=True)
+  p.add_argument("--name")
+  p.add_argument("--description")
+  p.add_argument("-o", "--output", help="theme.toml path, or - for stdout (default: ~/.config/themer/themes/<id>)")
+  p.add_argument("--replace", action="store_true")
+  p.set_defaults(fn=cmd_import)
+
+  p = sub.add_parser("validate", help="check a theme fills the token contract")
+  theme_opts(p, variant=False)
+  p.set_defaults(fn=cmd_validate)
+
+  p = sub.add_parser("check", help="contrast report for every variant of a theme")
+  theme_opts(p, variant=False)
+  p.set_defaults(fn=cmd_check)
+
+  for name, fn, h in (("show", cmd_show, "swatches in the terminal"), ("tokens", cmd_tokens, "every resolved token")):
+    p = sub.add_parser(name, help=h)
+    theme_opts(p)
+    p.set_defaults(fn=fn)
+
+  p = sub.add_parser("get", help="print one value, with filters: themer get 'accent | rgb'")
+  p.add_argument("token")
+  theme_opts(p)
+  p.set_defaults(fn=cmd_get)
+
+  p = sub.add_parser("set", help="change a value: themer set blue 'oklch(0.75 0.13 246)' [--theme pare --variant dark]")
+  p.add_argument("token")
+  p.add_argument("value")
+  theme_opts(p)
+  p.add_argument("--section", help="table to edit instead of the variant, for example roles")
+  p.set_defaults(fn=cmd_set)
+
+  p = sub.add_parser("undo", help="restore the files changed by the last apply")
+  p.add_argument("--dry-run", action="store_true")
+  p.set_defaults(fn=cmd_undo)
+
+  p = sub.add_parser("stow", help="link the dotfiles folder into ~ with the configured stow command")
+  p.add_argument("--dry-run", action="store_true")
+  p.set_defaults(fn=cmd_stow)
+
+  p = sub.add_parser("screens", help="recommended scale per screen")
+  p.set_defaults(fn=cmd_screens)
+
+  p = sub.add_parser("doctor", help="check what Themer needs")
+  theme_opts(p, variant=False)
+  p.set_defaults(fn=cmd_doctor)
+
+  args = ap.parse_args()
+  args.fn(args)
+
+
+if __name__ == "__main__":
+  main()

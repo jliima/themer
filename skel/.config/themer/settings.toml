@@ -1,0 +1,17 @@
+# Themer settings for this machine. Lives in your dotfiles and is stowed to ~/.config/themer/settings.toml.
+
+# Theme used when no --theme is given and nothing has been applied yet.
+default-theme = "pare"
+
+[dotfiles]
+# Generated files that Themer owns (color schemes, Konsole schemes and profile, Kate themes, GTK css) are written
+# into this folder at their path relative to ~, then linked with the stow command below. Your themes, templates,
+# snippets and this file live in <path>/.config/themer. Merged config files (kdeglobals, kwinrc, katerc, darklyrc,
+# konsolerc) are edited where they are; if you stow them yourself, Themer writes through the link.
+enabled = true
+path = "@DOTFILES@"
+# {dotfiles} and {home} are filled in. Leave empty ("") to skip stowing and run stow yourself.
+stow = "stow --no-folding --dir={dotfiles} --target={home} ."
+
+[firefox]
+# profile = "~/.mozilla/firefox/xxxxxxxx.default-release"   # set if detection picks the wrong profile

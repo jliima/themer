@@ -1,0 +1,118 @@
+# Themer defaults. Every theme is layered over this file, so a theme only has to define what makes it different.
+# Precedence for colors: theme [variant] > theme [roles] > defaults [variant] > defaults [roles].
+# Other tables (fonts, shape, kde, konsole, firefox) merge key by key, the theme winning.
+
+[fonts]
+sans = "Noto Sans"
+mono = "Hack"
+ui-size = 10          # points; Plasma UI, menus, toolbars
+small-size = 8        # points; smallest readable
+mono-size = 11        # points; Konsole, Kate
+title-size = 10       # points; window titles
+ui-weight = 400       # 100 to 900; UI text in Plasma, menus, toolbars (also the GTK font Plasma passes on)
+title-weight = 500    # window titles
+mono-weight = 400     # Konsole, Kate
+
+[shape]
+radius-xs = 4
+radius-sm = 6
+radius-md = 10
+radius-lg = 14
+
+[kde]
+widget-style = "Darkly"
+decoration-library = "org.kde.darkly"
+decoration-theme = "Darkly"
+buttons-left = ""
+buttons-right = "IAX"   # I minimize, A maximize, X close
+title-alignment = "AlignCenterFullWidth"
+
+[konsole]
+margin = 12
+line-spacing = 2
+
+[firefox]
+compact = true          # browser.uidensity 1
+
+# Roles: what each color is for, as aliases of palette tokens.
+[roles]
+accent = "{blue}"
+accent-hover = "{blue-bright}"
+accent-soft = "{blue-soft}"
+focus-ring = "{accent}"
+link = "{accent}"
+success = "{green}"
+success-soft = "{green-soft}"
+warning = "{orange}"
+warning-soft = "{orange-soft}"
+danger = "{red}"
+danger-soft = "{red-soft}"
+info = "{cyan}"
+info-soft = "{cyan-soft}"
+syntax-keyword = "{green}"
+syntax-string = "{magenta}"
+syntax-escape = "{cyan}"
+syntax-number = "{red}"
+syntax-constant = "{red}"
+syntax-function = "{blue}"
+syntax-class = "{blue-bright}"
+syntax-type = "{cyan}"
+syntax-annotation = "{violet}"
+syntax-doc-tag = "{orange}"
+syntax-property = "{cyan}"
+syntax-tag = "{green}"
+syntax-attribute = "{orange}"
+syntax-variable = "{text}"
+syntax-operator = "{text-muted}"
+syntax-punctuation = "{text-subtle}"
+syntax-comment = "{text-faint}"
+syntax-heading = "{blue-bright}"
+syntax-link = "{blue}"
+syntax-url = "{cyan}"
+syntax-regex = "{cyan}"
+# KDE has one selection color for list rows, checkboxes and progress bars.
+# "{accent}" with "{on-accent}" text gives vivid selections.
+kde-selection = "{selection}"
+kde-selection-text = "{text}"
+
+[dark]
+on-accent = "{bg-deep}"
+text-inverse = "{bg-deep}"
+selection = "oklch(0.36 0.07 246)"
+ansi-0 = "{surface-active}"
+ansi-1 = "{red}"
+ansi-2 = "{green}"
+ansi-3 = "{yellow}"
+ansi-4 = "{blue}"
+ansi-5 = "{magenta}"
+ansi-6 = "{cyan}"
+ansi-7 = "{text-muted}"
+ansi-8 = "{text-faint}"
+ansi-9 = "{red-bright}"
+ansi-10 = "{green-bright}"
+ansi-11 = "{yellow-bright}"
+ansi-12 = "{blue-bright}"
+ansi-13 = "{magenta-bright}"
+ansi-14 = "{cyan-bright}"
+ansi-15 = "{text-bright}"
+
+[light]
+on-accent = "#ffffff"
+text-inverse = "#ffffff"
+selection = "oklch(0.87 0.05 246)"
+ansi-0 = "{text-muted}"
+ansi-1 = "{red}"
+ansi-2 = "{green}"
+ansi-3 = "{yellow}"
+ansi-4 = "{blue}"
+ansi-5 = "{magenta}"
+ansi-6 = "{cyan}"
+ansi-7 = "{line-strong}"
+ansi-8 = "{text-subtle}"
+ansi-9 = "{red-bright}"
+ansi-10 = "{green-bright}"
+ansi-11 = "{yellow-bright}"
+ansi-12 = "{blue-bright}"
+ansi-13 = "{magenta-bright}"
+ansi-14 = "{cyan-bright}"
+ansi-15 = "{line}"

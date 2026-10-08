@@ -1,0 +1,30 @@
+# The Themer token contract: the names every template may use. A theme is valid when each of these resolves to a
+# color in every variant it declares. Most of them have defaults (defaults.toml), so a theme must really only
+# define the palette: grounds, lines, text and the eight hues. `themer validate --theme <id>` checks a theme.
+
+[required]
+grounds = ["bg-deep", "bg-sunken", "bg", "surface", "surface-raised", "surface-hover", "surface-active"]
+lines = ["line", "line-strong"]
+text = ["text-bright", "text", "text-muted", "text-subtle", "text-faint", "text-disabled", "text-inverse"]
+hues = ["red", "orange", "yellow", "green", "cyan", "blue", "violet", "magenta"]
+hue-steps = [
+  "red-bright", "red-dim", "red-soft", "orange-bright", "orange-dim", "orange-soft",
+  "yellow-bright", "yellow-dim", "yellow-soft", "green-bright", "green-dim", "green-soft",
+  "cyan-bright", "cyan-dim", "cyan-soft", "blue-bright", "blue-dim", "blue-soft",
+  "violet-bright", "violet-dim", "violet-soft", "magenta-bright", "magenta-dim", "magenta-soft",
+]
+roles = [
+  "accent", "accent-hover", "accent-soft", "on-accent", "focus-ring", "selection", "link",
+  "success", "success-soft", "warning", "warning-soft", "danger", "danger-soft", "info", "info-soft",
+  "kde-selection", "kde-selection-text",
+]
+syntax = [
+  "syntax-keyword", "syntax-string", "syntax-escape", "syntax-number", "syntax-constant", "syntax-function",
+  "syntax-class", "syntax-type", "syntax-annotation", "syntax-doc-tag", "syntax-property", "syntax-tag",
+  "syntax-attribute", "syntax-variable", "syntax-operator", "syntax-punctuation", "syntax-comment",
+  "syntax-heading", "syntax-link", "syntax-url", "syntax-regex",
+]
+terminal = [
+  "ansi-0", "ansi-1", "ansi-2", "ansi-3", "ansi-4", "ansi-5", "ansi-6", "ansi-7",
+  "ansi-8", "ansi-9", "ansi-10", "ansi-11", "ansi-12", "ansi-13", "ansi-14", "ansi-15",
+]

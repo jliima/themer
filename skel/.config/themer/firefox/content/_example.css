@@ -1,0 +1,10 @@
+/*
+ * Snippets for Firefox's own pages (new tab, settings, add-ons). Every .css file in this folder is added to the end
+ * of userContent.css by `themer apply`. This one starts with _ so it is skipped; rename it to use it.
+ * Wrap rules in @-moz-document so they only touch the pages you mean.
+ */
+@-moz-document url("about:newtab"), url("about:home") {
+  .logo-and-wordmark {
+    display: none !important;
+  }
+}
