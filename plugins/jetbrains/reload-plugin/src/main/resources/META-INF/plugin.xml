@@ -1,0 +1,25 @@
+<idea-plugin>
+  <id>com.github.jliima.themer.reload</id>
+  <name>Themer Theme Reloader</name>
+  <version>1.0.0</version>
+  <vendor url="https://github.com/jliima">jliima</vendor>
+
+  <description><![CDATA[
+    Reloads the Themer UI theme and editor scheme that `themer apply` rendered
+    without requiring an IDE restart.
+
+    Exposes a local HTTP endpoint: POST http://localhost:9988/reload
+    Called by apply.sh, which Themer runs when the JetBrains theme changes.
+  ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <postStartupActivity implementation="com.github.jliima.themer.reload.ThemerReloadStartupActivity"/>
+  </extensions>
+
+  <applicationListeners>
+    <listener class="com.github.jliima.themer.reload.LafChangeListener"
+              topic="com.intellij.ide.ui.LafManagerListener"/>
+  </applicationListeners>
+</idea-plugin>
