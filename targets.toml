@@ -48,6 +48,25 @@ output = "~/.config/darklyrc"
 mode = "merge-ini"
 reload = "kwin"
 
+# Read by the Themer KWin decoration (decoration/). Harmless without it; to use it, build it and set
+# [kde] decoration-library = "themer" in the theme or in settings.toml.
+[[target]]
+name = "Themer window decoration"
+group = "kde"
+template = "kde/themerdecorationrc.ini"
+output = "~/.config/themerdecorationrc"
+reload = "kwin"
+
+# KDE-Rounded-Corners (kwin4_effect_shapecorners), if installed: rounds and outlines every window, including ones
+# that draw their own title bar. Same radius and ring as the decoration.
+[[target]]
+name = "Rounded corners effect"
+group = "kde"
+template = "kde/shapecorners.ini"
+output = "~/.config/kwinrc"
+mode = "merge-ini"
+reload = "kwin"
+
 [[target]]
 name = "Window buttons on the right"
 group = "kde"

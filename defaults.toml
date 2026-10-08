@@ -27,6 +27,26 @@ buttons-left = ""
 buttons-right = "IAX"   # I minimize, A maximize, X close
 title-alignment = "AlignCenterFullWidth"
 
+# Window frames drawn by the Themer KWin decoration (decoration/, see README). Sizes in logical px.
+[window]
+title-height = 34
+title-size = 12          # px, window title; its weight is fonts.title-weight
+button-size = 22         # round button ground
+button-spacing = 6
+glyph-size = 8           # minimize, maximize and close glyphs
+glyph-stroke = 1.25
+icon-size = 16           # window icon of the menu button (M in buttons-left)
+padding-left = 12
+padding-right = 8
+outline-width = 1        # ring around every window drawn by the rounded corners effect, 0 for none
+decoration-outline-width = 1  # ring drawn by the decoration itself; 0 when the rounded corners effect draws it
+resize-border = 6        # invisible resize area outside the window
+shadow-blur = 64         # like CSS box-shadow: 0 <offset> <blur>
+shadow-offset = 24
+shadow-alpha-dark = 0.8
+shadow-alpha-light = 0.2
+hover-duration = 120     # ms
+
 [konsole]
 margin = 12
 line-spacing = 2
@@ -74,8 +94,22 @@ syntax-regex = "{cyan}"
 # "{accent}" with "{on-accent}" text gives vivid selections.
 kde-selection = "{selection}"
 kde-selection-text = "{text}"
+# Window frames (Themer KWin decoration)
+titlebar = "{bg-deep}"
+titlebar-inactive = "{bg-deep}"
+titlebar-text = "{text-subtle}"
+titlebar-text-inactive = "{text-faint}"
+titlebar-button-hover = "{surface-active}"
+titlebar-button-pressed = "{surface-hover}"
+titlebar-button-checked = "{accent-soft}"
+titlebar-close-hover = "{danger}"
+titlebar-close-pressed = "{red-bright}"
+titlebar-close-text = "{on-accent}"
+window-outline = "{line}"
+window-outline-inactive = "{line}"
 
 [dark]
+window-shadow = "#000000"
 on-accent = "{bg-deep}"
 text-inverse = "{bg-deep}"
 selection = "oklch(0.36 0.07 246)"
@@ -97,6 +131,7 @@ ansi-14 = "{cyan-bright}"
 ansi-15 = "{text-bright}"
 
 [light]
+window-shadow = "#0b1620"
 on-accent = "#ffffff"
 text-inverse = "#ffffff"
 selection = "oklch(0.87 0.05 246)"

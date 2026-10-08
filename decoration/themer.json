@@ -1,0 +1,12 @@
+{
+  "KPlugin": {
+    "Description": "Window decoration drawn from the applied Themer theme",
+    "EnabledByDefault": true,
+    "Id": "themer",
+    "Name": "Themer"
+  },
+  "org.kde.kdecoration3": {
+    "blur": false,
+    "recommendedBorderSize": "None"
+  }
+}

@@ -15,3 +15,10 @@ stow = "stow --no-folding --dir={dotfiles} --target={home} ."
 
 [firefox]
 # profile = "~/.mozilla/firefox/xxxxxxxx.default-release"   # set if detection picks the wrong profile
+
+# Non-color settings that win over every theme on this machine, by table and key as in a theme.toml. For example the
+# Themer KWin decoration, once built from themer/decoration (build.sh):
+# [overrides.kde]
+# decoration-library = "themer"
+# decoration-theme = "Themer"
+# buttons-left = "M"

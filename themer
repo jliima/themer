@@ -367,6 +367,11 @@ def context(pal, variant):
       for k, v in values.items():
         if not isinstance(v, dict):
           ctx[f"{section}.{k}"] = v
+  # Machine settings win over every theme, e.g. [overrides.kde] decoration-library = "themer".
+  for section, values in settings().get("overrides", {}).items():
+    if isinstance(values, dict):
+      for k, v in values.items():
+        ctx[f"{section}.{k}"] = v
   for kind in ("chrome", "content"):
     ctx[f"firefox-{kind}-imports"], ctx[f"firefox-{kind}-snippets"] = firefox_snippets(pal, kind, ctx)
   return ctx

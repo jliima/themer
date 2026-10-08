@@ -132,6 +132,20 @@ Names that let apps follow theme changes without reselecting anything stay fixed
 `Themer.profile` and Kate's syntax themes are "Themer Dark" and "Themer Light". Plasma color schemes and Konsole
 color schemes carry the theme name (`PareDark`, `PareLight.colorscheme`) so you can still pick them by hand.
 
+## Window decoration and rounded corners
+
+`decoration/` is a KWin window decoration drawn from the theme: title bar, round buttons, corner radius, ring and
+shadow all come from tokens (`[window]` and the `titlebar-*` / `window-*` roles in `defaults.toml`, overridable per
+theme). Build it with `decoration/build.sh` and select it in `settings.toml`; see `decoration/README.md`.
+
+If the KDE-Rounded-Corners effect is installed, the "Rounded corners effect" target sets its radius to
+`shape.radius-lg` and its ring to `window-outline`, so windows that draw their own title bar match.
+
+## Machine overrides
+
+`[overrides.<table>]` in `settings.toml` sets non-color values that win over every theme on this machine, with the
+same table and key names as a `theme.toml`, e.g. `[overrides.kde] decoration-library = "themer"`.
+
 ## Firefox snippets
 
 Every `.css` file in `~/.config/themer/firefox/chrome/` is appended to `userChrome.css` on `themer apply`, in file
