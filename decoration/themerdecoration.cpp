@@ -73,7 +73,11 @@ bool Decoration::init()
     connect(w, signal, this, &Decoration::updateBorders);
   }
   connect(w, &DecoratedWindow::adjacentScreenEdgesChanged, this, &Decoration::updateBorders);
-  connect(w, &DecoratedWindow::widthChanged, this, &Decoration::updateButtons);
+  // The title bar spans the window, so it follows every width change (a resize, not just a maximize).
+  connect(w, &DecoratedWindow::widthChanged, this, [this]() {
+    updateTitleBar();
+    updateButtons();
+  });
   connect(w, &DecoratedWindow::nextScaleChanged, this, &Decoration::updateBorders);
 
   m_left = new DecorationButtonGroup(DecorationButtonGroup::Position::Left, this, &Button::create);
@@ -116,7 +120,7 @@ void Decoration::updateBorders()
   const qreal scale = window()->nextScale();
   const qreal top = KDecoration3::snapToPixelGrid(c.titleHeight, scale);
   setBorders(QMarginsF(0, top, 0, 0));
-  setTitleBar(QRectF(0, 0, window()->width(), top));
+  updateTitleBar();
 
   const auto w = window();
   const qreal ext = KDecoration3::snapToPixelGrid(c.resizeBorder, scale);
@@ -138,6 +142,12 @@ void Decoration::updateBorders()
     setBorderOutline(KDecoration3::BorderOutline(thickness, w->isActive() ? c.outline : c.outlineInactive,
                                                  KDecoration3::BorderRadius(r, r, bottomRight, bottomLeft)));
   }
+}
+
+void Decoration::updateTitleBar()
+{
+  setTitleBar(QRectF(0, 0, window()->width(), borderTop()));
+  update();
 }
 
 void Decoration::updateButtons()

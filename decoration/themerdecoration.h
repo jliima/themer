@@ -26,6 +26,7 @@ public:
 private:
   void reconfigure();
   void updateBorders();
+  void updateTitleBar();
   void updateButtons();
   void updateShadow();
 
