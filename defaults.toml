@@ -39,7 +39,8 @@ glyph-stroke = 1.25
 icon-size = 16           # window icon of the menu button (M in buttons-left)
 padding-left = 12
 padding-right = 8
-outline-width = 1        # ring around every window drawn by the rounded corners effect, 0 for none
+outline-width = 1        # ring around inactive windows drawn by the rounded corners effect, 0 for none
+outline-width-active = 1  # the same ring around the active window
 decoration-outline-width = 1  # ring drawn by the decoration itself; 0 when the rounded corners effect draws it
 resize-border = 6        # invisible resize area outside the window
 shadow-blur = 64         # like CSS box-shadow: 0 <offset> <blur>
@@ -119,7 +120,7 @@ titlebar-button-checked = "{accent-soft}"
 titlebar-close-hover = "{danger}"
 titlebar-close-pressed = "{red-bright}"
 titlebar-close-text = "{on-accent}"
-window-outline = "{line}"
+window-outline = "{focus-ring}"
 window-outline-inactive = "{line}"
 
 [dark]
