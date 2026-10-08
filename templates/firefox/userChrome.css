@@ -194,6 +194,11 @@
   min-height: 40px !important;
 }
 
+/* No empty 40px spacer before the first tab */
+#TabsToolbar .titlebar-spacer[type="pre-tabs"] {
+  display: none !important;
+}
+
 .tabbrowser-tab {
   padding-inline: 2px !important;
   font-size: 12px !important;
@@ -214,6 +219,15 @@
 
 .tabbrowser-tab .tab-label-container {
   margin-inline-start: 0 !important;
+  align-items: center !important;
+}
+
+.tabbrowser-tab .tab-label {
+  line-height: 30px !important;
+  position: relative;
+  top: -1px;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .tabbrowser-tab .tab-background {
@@ -390,18 +404,20 @@
   fill: var(--themer-text-subtle) !important;
 }
 
-#identity-box[pageproxystate="valid"]:is(.verifiedDomain, .verifiedIdentity) #identity-icon {
+#identity-box[pageproxystate="valid"]:is(.verifiedDomain, .verifiedIdentity) #identity-icon,
+#trust-icon-container.secure #trust-icon {
   fill: var(--themer-success) !important;
+  color: var(--themer-success) !important;
 }
 
 #urlbar-input-container .urlbar-input-box .urlbar-input + * {
   color: var(--themer-text-subtle);
 }
 
-/* Address bar dropdown: a menu-like panel under the field */
+/* Address bar dropdown: a raised menu-like panel under the field, rows hover to surface-hover, selection accent-soft */
 #urlbar[open] > #urlbar-background {
   background-color: var(--themer-surface-raised) !important;
-  border-color: transparent !important;
+  border-color: var(--themer-line-strong) !important;
   outline: none !important;
   border-radius: var(--themer-radius-md) !important;
   box-shadow: var(--pare-shadow-md) !important;
@@ -414,7 +430,7 @@
 .urlbarView {
   margin-inline: 0 !important;
   width: 100% !important;
-  padding: 6px !important;
+  padding: 4px !important;
   box-sizing: border-box;
 }
 
@@ -429,6 +445,7 @@
 .urlbarView-row {
   min-height: 32px !important;
   padding-block: 0 !important;
+  margin-block: 1px !important;
   border-radius: var(--themer-radius-sm) !important;
 }
 
@@ -450,15 +467,20 @@
 }
 
 .urlbarView-row[selected] {
-  background-color: var(--themer-selection) !important;
+  background-color: var(--themer-accent-soft) !important;
 }
 
 .urlbarView-row :is(.urlbarView-favicon, .urlbarView-type-icon) {
   fill: var(--themer-text-subtle) !important;
 }
 
+.urlbarView-row[selected] :is(.urlbarView-favicon, .urlbarView-type-icon) {
+  fill: var(--themer-accent) !important;
+}
+
 .urlbarView-title, .urlbarView-row[selected] .urlbarView-title {
   color: var(--themer-text) !important;
+  font-weight: {{ fonts.ui-weight }} !important;
 }
 
 .urlbarView-url, .urlbarView-title-separator, .urlbarView-secondary {
@@ -467,7 +489,7 @@
 }
 
 .urlbarView-action {
-  color: var(--themer-accent) !important;
+  color: var(--themer-text-subtle) !important;
   font-size: 12px !important;
   margin-inline-start: auto;
 }
