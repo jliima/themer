@@ -141,10 +141,22 @@ theme). Build it with `decoration/build.sh` and select it in `settings.toml`; se
 If the KDE-Rounded-Corners effect is installed, the "Rounded corners effect" target sets its radius to
 `shape.radius-lg` and its ring to `window-outline`, so windows that draw their own title bar match.
 
+## Qt widget style (Kvantum)
+
+Themer renders a Kvantum theme from the tokens: `~/.config/Kvantum/Themer/Themer.{kvconfig,svg}` for the light
+variant and `ThemerDark.*` for the dark one (stowed from the dotfiles). The kvconfig comes from
+`templates/kvantum/Themer.kvconfig`, the SVG from `kvantum.py`: flat rounded parts with `shape.radius-sm` for
+controls and items, `shape.radius-md` for menus, `line-strong` borders on inputs and check boxes, line tabs with an
+`accent` underline, menu rows in `accent-soft`. Sizes are in `[kvantum]` in `defaults.toml`. To use it, set
+`[kde] widget-style = "kvantum"` and `widget-style-dark = "kvantum-dark"`; switching between the two names is what
+makes running KDE apps pick up a variant change.
+
 ## Machine overrides
 
 `[overrides.<table>]` in `settings.toml` sets non-color values that win over every theme on this machine, with the
 same table and key names as a `theme.toml`, e.g. `[overrides.kde] decoration-library = "themer"`.
+
+Templates can also use `{{ dark-suffix }}` ("Dark" or nothing) and the filter `add(N or token)`.
 
 ## Firefox snippets
 

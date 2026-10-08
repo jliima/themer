@@ -361,7 +361,8 @@ def context(pal, variant):
   meta = pal["meta"]
   ctx.update({"variant": variant, "Variant": variant.capitalize(), "theme": meta["id"], "name": meta["name"],
               "scheme": f"{meta['name'].replace(' ', '')}{variant.capitalize()}",
-              "is-dark": 1 if variant == "dark" else 0, "is-light": 0 if variant == "dark" else 1})
+              "is-dark": 1 if variant == "dark" else 0, "is-light": 0 if variant == "dark" else 1,
+              "dark-suffix": "Dark" if variant == "dark" else ""})
   for section, values in pal.items():
     if isinstance(values, dict) and section not in VARIANTS and section not in ("roles", "meta", "_defaults"):
       for k, v in values.items():
@@ -372,6 +373,10 @@ def context(pal, variant):
     if isinstance(values, dict):
       for k, v in values.items():
         ctx[f"{section}.{k}"] = v
+  # A widget style can have a dark twin (Kvantum: kvantum-dark loads <theme>Dark); switching the style name is also
+  # what makes running KDE apps restyle when the variant changes.
+  if variant == "dark" and ctx.get("kde.widget-style-dark"):
+    ctx["kde.widget-style"] = ctx["kde.widget-style-dark"]
   for kind in ("chrome", "content"):
     ctx[f"firefox-{kind}-imports"], ctx[f"firefox-{kind}-snippets"] = firefox_snippets(pal, kind, ctx)
   return ctx
@@ -477,6 +482,8 @@ def apply_filter(ctx, value, name, arg):
     return str(int(float(value)))
   if name == "div":
     return f"{float(value) / float(arg):g}"
+  if name == "add":
+    return f"{float(value) + float(ctx[arg] if arg in ctx else arg):g}"
   raise ValueError(f"unknown filter '{name}' for value {value!r}")
 
 
@@ -623,7 +630,16 @@ def fmt_pywal_css(pal, theme):
   return "\n".join(lines + ["}"]) + "\n"
 
 
-FORMATS = {"json": fmt_json, "css": fmt_css, "sh": fmt_sh, "pywal": fmt_pywal, "pywal-sh": fmt_pywal_sh,
+def fmt_kvantum_svg(pal, theme):
+  sys.path.insert(0, str(Path(__file__).resolve().parent))
+  import kvantum
+  ctx = context(pal, theme)
+  colors = {k: v for k, v in ctx.items() if isinstance(v, str) and COLOR_RE.match(v)}
+  numbers = {k.split(".", 1)[1]: v for k, v in ctx.items() if k.startswith(("shape.", "kvantum."))}
+  return kvantum.build(colors, numbers)
+
+
+FORMATS = {"kvantum-svg": fmt_kvantum_svg, "json": fmt_json, "css": fmt_css, "sh": fmt_sh, "pywal": fmt_pywal, "pywal-sh": fmt_pywal_sh,
            "pywal-css": fmt_pywal_css}
 
 

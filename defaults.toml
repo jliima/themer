@@ -21,6 +21,7 @@ radius-lg = 14
 
 [kde]
 widget-style = "Darkly"
+# widget-style-dark = "kvantum-dark"   # optional: the widget style for dark variants (Kvantum loads <theme>Dark)
 decoration-library = "org.kde.darkly"
 decoration-theme = "Darkly"
 buttons-left = ""
@@ -46,6 +47,19 @@ shadow-offset = 24
 shadow-alpha-dark = 0.8
 shadow-alpha-light = 0.2
 hover-duration = 120     # ms
+
+# Qt widgets drawn by the Themer Kvantum theme (kvantum.py, templates/kvantum). Sizes in px; radii come from [shape].
+[kvantum]
+menu-padding = 4         # menu items sit this far in from the menu edge
+menu-separator = 9       # height of a menu separator row
+scroll-width = 10
+slider-width = 4         # groove thickness
+slider-handle = 16
+progress-thickness = 6
+check-size = 16
+arrow-size = 10
+button-height = 32       # push buttons, combo boxes and line edits (min height)
+row-height = 28          # menu items and list rows (min height)
 
 [konsole]
 margin = 12

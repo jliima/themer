@@ -67,6 +67,31 @@ output = "~/.config/kwinrc"
 mode = "merge-ini"
 reload = "kwin"
 
+# Kvantum widget style: a theme folder with a light (Themer) and dark (ThemerDark) variant, drawn from tokens. Use it
+# with [kde] widget-style = "kvantum" and widget-style-dark = "kvantum-dark" (in the theme or settings.toml).
+[[target]]
+name = "Kvantum theme"
+dotfiles = true
+group = "kde"
+template = "kvantum/Themer.kvconfig"
+output = "~/.config/Kvantum/Themer/Themer{{ dark-suffix }}.kvconfig"
+variants = "all"
+
+[[target]]
+name = "Kvantum theme image"
+dotfiles = true
+group = "kde"
+format = "kvantum-svg"
+output = "~/.config/Kvantum/Themer/Themer{{ dark-suffix }}.svg"
+variants = "all"
+
+[[target]]
+name = "Kvantum theme selection"
+group = "kde"
+template = "kvantum/kvantum.kvconfig"
+output = "~/.config/Kvantum/kvantum.kvconfig"
+mode = "merge-ini"
+
 [[target]]
 name = "Window buttons on the right"
 group = "kde"
