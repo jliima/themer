@@ -28,7 +28,7 @@ command -v npx >/dev/null || { echo "install: npm is not installed: sudo apt ins
 
 version="$(node -p "require('$here/package.json').version")"
 vsix="$here/themer-$version.vsix"
-(cd "$here" && npx --yes @vscode/vsce@3.2.1 package --skip-license --allow-missing-repository -o "$vsix")
+(cd "$here" && npx --yes @vscode/vsce@3.2.1 package --allow-missing-repository -o "$vsix")
 
 code --install-extension "$vsix" --force
 for p in "${profiles[@]}"; do

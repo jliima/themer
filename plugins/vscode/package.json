@@ -3,9 +3,8 @@
   "displayName": "Themer",
   "description": "Color themes rendered by Themer, reloaded when Themer re-renders them",
   "version": "1.0.0",
-  "publisher": "jliima",
-  "license": "UNLICENSED",
-  "private": true,
+  "publisher": "themer",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.80.0"
   },

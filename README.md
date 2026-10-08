@@ -242,7 +242,7 @@ Exports refreshed on every apply, for scripts and apps without a template: `~/.c
 | Kate, KWrite | `Themer-Dark.theme`, `Themer-Light.theme`, `katerc` (merged) | Kate is switched to the Themer theme of the applied variant. |
 | GTK 4 | `~/.config/gtk-4.0/themer.css`, an import line in `gtk.css` | libadwaita accent, header bars, sidebars, cards. |
 | Firefox | `<profile>/chrome/themer-colors.css`, `userChrome.css`, `userContent.css`, lines in `user.js` | Enables userChrome loading, compact density, websites follow the variant. |
-| VS Code | `~/.vscode/extensions/jliima.themer-*/themes/themer-{dark,light}.json` | Needs the extension in [plugins/vscode/](plugins/vscode/README.md), which reloads the window when a theme is re-rendered. |
+| VS Code | `~/.vscode/extensions/themer.themer-*/themes/themer-{dark,light}.json` | Needs the extension in [plugins/vscode/](plugins/vscode/README.md), which reloads the window when a theme is re-rendered. |
 
 Files marked dotfiles in the table above (color schemes, Konsole, Kate, GTK css) go through your dotfiles folder when
 dotfiles mode is on. Merged files keep every key Themer does not set. Every overwritten file is backed up first;
@@ -261,3 +261,12 @@ HDMI-A-1 = 1.5
 
 `themer screens` prints the `kscreen-doctor` commands for the outputs that differ; `themer screens --apply` runs
 them. Keep fonts in points; the scale does the rest.
+
+## Development
+
+```sh
+python3 -m unittest discover tests
+```
+
+The tests run the commands in a throwaway home folder. The theme under `tests/fixtures` exists only for them; Themer
+ships no themes. Themer is MIT licensed, see [LICENSE](LICENSE).

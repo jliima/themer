@@ -317,7 +317,7 @@ def build(t, n):
   frame_element(svg, "splitter", 1, {"normal": (None, None), "focused": (t["line-strong"], None),
                                      "pressed": (t["accent"], None)}, states=("normal", "focused", "pressed"))
 
-  # Headers of item views: the view ground and a hairline under it, no lines between sections (like Pare's List).
+  # Headers of item views: the view ground and a hairline under it, no lines between sections (like a design system's list).
   line_frames(svg, "header", 2, {s: t["line"] for s in STATES}, sides=("bottom",), states=STATES, width=1,
               interior=t["bg"])
   empty(svg, "header-separator")

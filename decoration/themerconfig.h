@@ -6,7 +6,7 @@ namespace Themer
 {
 
 // Everything the decoration draws with, read from ~/.config/themerdecorationrc. Themer writes that file from the
-// applied theme's tokens (template kde/themerdecorationrc.ini); the defaults below are Pare dark.
+// applied theme's tokens (template kde/themerdecorationrc.ini); the defaults below are a dark fallback.
 struct Config {
   // Title bar
   QColor titleBar;

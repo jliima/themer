@@ -197,7 +197,7 @@ mode = "ensure-lines"
 name = "VS Code themes"
 group = "vscode"
 template = "vscode/theme.json"
-output = "~/.vscode/extensions/jliima.themer-*/themes/themer-{{ variant }}.json"
+output = "~/.vscode/extensions/themer.themer-*/themes/themer-{{ variant }}.json"
 variants = "all"
 
 # ---- Exports for everything else -------------------------------------------------------------------------------------
