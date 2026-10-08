@@ -13,8 +13,8 @@
 {{ firefox-chrome-imports }}
 
 :root {
-  --pare-font: "{{ fonts.sans }}", sans-serif;
-  --pare-shadow-md: 0 8px 24px rgb(from {{ window-shadow }} r g b / calc({{ is-dark }} * 0.7 + {{ is-light }} * 0.15)),
+  --themer-font: "{{ fonts.sans }}", sans-serif;
+  --themer-shadow-md: 0 8px 24px rgb(from {{ window-shadow }} r g b / calc({{ is-dark }} * 0.7 + {{ is-light }} * 0.15)),
     0 0 0 1px var(--themer-line);
 
   /* Design system tokens used across the chrome */
@@ -144,7 +144,7 @@
   --panel-text-color: var(--themer-text) !important;
   --panel-border-color: var(--themer-line) !important;
   --panel-border-radius: var(--themer-radius-md) !important;
-  --panel-shadow: var(--pare-shadow-md) !important;
+  --panel-shadow: var(--themer-shadow-md) !important;
   --panel-icon-fill: var(--themer-text-subtle) !important;
   --arrowpanel-background: var(--themer-surface-raised) !important;
   --arrowpanel-color: var(--themer-text) !important;
@@ -174,7 +174,7 @@
 /* UI text like Plasma's: the ui-weight, and no automatic optical size. Qt draws a variable font's named instances at
    the default optical size, while Firefox would pick a small-size cut (SF Pro Text), which is heavier and wider. */
 #navigator-toolbox, menupopup, panel {
-  font-family: var(--pare-font) !important;
+  font-family: var(--themer-font) !important;
   font-weight: {{ fonts.ui-weight }} !important;
   font-optical-sizing: none !important;
 }
@@ -318,7 +318,7 @@
   height: 10px !important;
   padding: 0 !important;
   background: currentColor !important;
-  mask: var(--pare-glyph) center / 10px 10px no-repeat;
+  mask: var(--themer-glyph) center / 10px 10px no-repeat;
 }
 
 .titlebar-button:hover {
@@ -336,19 +336,19 @@
 }
 
 .titlebar-min {
-  --pare-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5 5 6.5 8 3.5' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  --themer-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5 5 6.5 8 3.5' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
 }
 
 .titlebar-max {
-  --pare-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 6.5 5 3.5 8 6.5' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  --themer-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 6.5 5 3.5 8 6.5' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
 }
 
 .titlebar-restore {
-  --pare-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 1.8 8.2 5 5 8.2 1.8 5Z' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  --themer-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 1.8 8.2 5 5 8.2 1.8 5Z' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
 }
 
 .titlebar-close {
-  --pare-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2.5 2.5 7.5 7.5M7.5 2.5 2.5 7.5' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  --themer-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2.5 2.5 7.5 7.5M7.5 2.5 2.5 7.5' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E") !important;
 }
 
 /* ---- Navigation bar ----------------------------------------------------------------------------------------------- */
@@ -420,7 +420,7 @@
   border-color: var(--themer-line-strong) !important;
   outline: none !important;
   border-radius: var(--themer-radius-md) !important;
-  box-shadow: var(--pare-shadow-md) !important;
+  box-shadow: var(--themer-shadow-md) !important;
 }
 
 #urlbar[open] > .urlbar-input-container {
@@ -554,7 +554,7 @@ menupopup, panel {
   --panel-border-color: var(--themer-line) !important;
   --panel-border-radius: var(--themer-radius-md) !important;
   --panel-padding: 4px !important;
-  --panel-shadow: var(--pare-shadow-md) !important;
+  --panel-shadow: var(--themer-shadow-md) !important;
   --menuitem-border-radius: var(--themer-radius-sm) !important;
   --menuitem-padding: 0 8px !important;
   --menu-background-color: var(--themer-surface-raised) !important;

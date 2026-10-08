@@ -6,8 +6,8 @@ syntax and terminal colors) for one or more variants (dark, light). Themer resol
 templates listed in targets.toml for Plasma, Darkly, Konsole, Kate, GTK, Firefox and anything else, installs them
 and reloads what can be reloaded.
 
-  themer apply --theme pare            apply a theme (its default variant)
-  themer apply --theme pare --variant light
+  themer apply --theme ID              apply a theme (its default variant)
+  themer apply --theme ID --variant light
   themer mode toggle                   switch the current theme between dark and light
 
 Python 3.11+ standard library only.
@@ -161,27 +161,21 @@ def load_toml(path):
 _SETTINGS = None
 
 
+_SETTINGS_FILE = None
+
+
 def settings():
-  """Machine settings (settings.toml): ~/.config/themer first, then the dotfiles copy next to this script, so a
-  fresh dotfiles checkout works before it is stowed."""
-  global _SETTINGS
+  """Machine settings (settings.toml): $THEMER_SETTINGS, else ~/.config/themer/settings.toml."""
+  global _SETTINGS, _SETTINGS_FILE
   if _SETTINGS is None:
     _SETTINGS = {}
     env = os.environ.get("THEMER_SETTINGS")
-    for f in ([Path(env)] if env else []) + [CONFIG_DIR / "settings.toml",
-                                             SELF_DIR.parent / ".config/themer/settings.toml"]:
+    for f in ([Path(env)] if env else []) + [CONFIG_DIR / "settings.toml"]:
       if f.exists():
         _SETTINGS = load_toml(f)
+        _SETTINGS_FILE = f
         break
   return _SETTINGS
-
-
-def dotfiles_dir():
-  """The stow directory (for example ~/dotfiles) when [dotfiles] is enabled, else None."""
-  d = settings().get("dotfiles", {})
-  if not d.get("enabled", False):
-    return None
-  return Path(os.path.expanduser(d.get("path", "~/dotfiles")))
 
 
 def home_rel(p):
@@ -189,6 +183,35 @@ def home_rel(p):
     return Path(p).relative_to(HOME)
   except ValueError:
     return None
+
+
+def detect_dotfiles():
+  """The dotfiles folder that settings.toml is stowed from: a settings file at <dotfiles>/.config/themer/settings.toml
+  that ~/.config/themer/settings.toml links to. None when settings.toml is not inside a dotfiles folder."""
+  settings()
+  if _SETTINGS_FILE is None:
+    return None
+  rel = (home_rel(CONFIG_DIR) or Path(".config/themer")).parts
+  real = Path(os.path.realpath(_SETTINGS_FILE))
+  if real.name != "settings.toml" or real.parent.parts[-len(rel):] != rel:
+    return None
+  df = Path(*real.parent.parts[:-len(rel)])
+  return df if df != HOME and df != Path(os.path.realpath(HOME)) else None
+
+
+def dotfiles_dir():
+  """The stow directory (for example ~/dotfiles) when [dotfiles] is enabled, else None. [dotfiles] path overrides the
+  folder; without it the folder settings.toml is stowed from is used, wherever it was cloned."""
+  d = settings().get("dotfiles", {})
+  if not d.get("enabled", False):
+    return None
+  if d.get("path"):
+    return Path(os.path.expanduser(d["path"]))
+  df = detect_dotfiles()
+  if df is None:
+    die("[dotfiles] is on but the dotfiles folder is unknown: stow your dotfiles so ~/.config/themer/settings.toml "
+        "links into them, or set [dotfiles] path in settings.toml")
+  return df
 
 
 def user_dir():
@@ -214,11 +237,11 @@ def is_user_path(p):
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Themes: folders with a theme.toml, found in your themes folder first, then next to this script
+# Themes: folders with a theme.toml in your themes folder. Themer ships none; they live in your config or dotfiles.
 # ---------------------------------------------------------------------------------------------------------------------
 
 def theme_dirs():
-  return [d / "themes" for d in user_dirs()] + [SELF_DIR / "themes"]
+  return [d / "themes" for d in user_dirs()]
 
 
 def find_config(name):
@@ -229,7 +252,7 @@ def find_config(name):
 
 
 def theme_path(ref):
-  """A theme id (pare), a folder with theme.toml, or a theme.toml file."""
+  """A theme id, a folder with theme.toml, or a theme.toml file."""
   p = Path(os.path.expanduser(ref))
   if p.is_file():
     return p
@@ -238,12 +261,12 @@ def theme_path(ref):
   for d in theme_dirs():
     if (d / ref / "theme.toml").exists():
       return d / ref / "theme.toml"
-  known = ", ".join(sorted(all_themes())) or "none"
+  known = ", ".join(sorted(all_themes())) or "none (themer install PATH adds one)"
   die(f"no theme '{ref}'. Installed themes: {known}")
 
 
 def all_themes():
-  """{id: path} with user themes shadowing bundled ones."""
+  """{id: path} of every installed theme."""
   found = {}
   for d in reversed(theme_dirs()):
     if d.is_dir():
@@ -931,9 +954,12 @@ def write_state(theme, variant):
 
 
 def pick(args, need_variant=True):
-  """Works out the theme and variant from --theme (pare or pare:light), --variant, the current state, settings."""
+  """Works out the theme and variant from --theme (ID or ID:light), --variant, the current state, settings."""
   state = read_state()
-  ref = getattr(args, "theme", None) or state.get("theme") or settings().get("default-theme") or "pare"
+  ref = getattr(args, "theme", None) or state.get("theme") or settings().get("default-theme")
+  if not ref:
+    die("no theme to use: pass --theme ID, or set default-theme in settings.toml. "
+        f"Installed themes: {', '.join(sorted(all_themes())) or 'none (themer install PATH adds one)'}")
   variant = getattr(args, "variant", None)
   if ":" in ref and not Path(ref).exists():
     ref, variant = ref.split(":", 1)
@@ -1147,20 +1173,17 @@ def cmd_themes(args):
     try:
       pal = load_theme(str(path))
     except SystemExit as e:
-      rows.append((tid, "", "", f"broken: {e}", ""))
+      rows.append((tid, "", "", f"broken: {e}"))
       continue
     m = pal["meta"]
-    where = "bundled"
-    if is_user_path(path):
-      where = "edited" if (SELF_DIR / "themes" / tid / "theme.toml").exists() else "user"
     mark = "*" if state.get("theme") == tid else " "
-    rows.append((f"{mark} {tid}", m["name"], "/".join(m["variants"]), m.get("description", ""), where))
+    rows.append((f"{mark} {tid}", m["name"], "/".join(m["variants"]), m.get("description", "")))
   if not rows:
-    print("no themes installed")
+    print("no themes installed; themer install PATH adds one, themer import converts a tokens.json")
     return
   w = [max(len(r[i]) for r in rows) for i in range(3)]
   for r in rows:
-    print(f"{r[0]:<{w[0]}}  {r[1]:<{w[1]}}  {r[2]:<{w[2]}}  {r[4]:<8} {r[3]}")
+    print(f"{r[0]:<{w[0]}}  {r[1]:<{w[1]}}  {r[2]:<{w[2]}}  {r[3]}")
   if state.get("theme"):
     print(f"\n* applied: {state['theme']} {state.get('variant', '')}")
 
@@ -1171,14 +1194,14 @@ def cmd_current(args):
 
 
 def user_copy(tid):
-  """Makes sure a theme lives in ~/.config/themer/themes so it can be edited. Returns its theme.toml."""
+  """Makes sure a theme lives in your themes folder so it can be edited. Returns its theme.toml."""
   dest = user_dir() / "themes" / tid
   if (dest / "theme.toml").exists():
     return dest / "theme.toml"
   src = theme_path(tid).parent
   shutil.copytree(src, dest)
   stow()
-  print(f"copied {tid} to {dest} for editing (the bundled copy stays untouched)")
+  print(f"copied {tid} to {dest} for editing")
   return dest / "theme.toml"
 
 
@@ -1255,12 +1278,12 @@ def cmd_install(args):
 def cmd_remove(args):
   dest = user_dir() / "themes" / args.id
   if not dest.exists():
-    die(f"{args.id} is not a user theme (bundled themes cannot be removed)")
+    die(f"{args.id} is not an installed theme")
   shutil.rmtree(dest)
   link = CONFIG_DIR / "themes" / args.id
   if link.is_symlink():
     link.unlink()
-  print(f"removed {dest}" + (" (the bundled copy is used again)" if (SELF_DIR / "themes" / args.id).exists() else ""))
+  print(f"removed {dest}")
 
 
 def cmd_validate(args):
@@ -1351,7 +1374,8 @@ def cmd_tokens(args):
 
 
 def cmd_set(args):
-  """Changes one value in the theme's theme.toml in place, keeping comments. Bundled themes are copied first."""
+  """Changes one value in the theme's theme.toml in place, keeping comments. A theme given by path is copied to your
+  themes folder first."""
   pal, variant = pick(args)
   if parse_color(args.value) is None and not ALIAS_RE.match(args.value):
     die("value must be #rrggbb, oklch(L C H) or {token}")
@@ -1547,12 +1571,8 @@ def cmd_doctor(args):
   print(f"config    {CONFIG_DIR}" + (f" -> {os.path.realpath(CONFIG_DIR)}" if CONFIG_DIR.is_symlink() else ""))
   df = dotfiles_dir()
   if df:
-    ign = df / ".stow-local-ignore"
-    ignored = ign.exists() and any(ln.strip().startswith("^/" + SELF_DIR.name) for ln in ign.read_text().splitlines())
     print(f"dotfiles  {df} (user files in {user_dir()})")
     print(f"          stow: {settings().get('dotfiles', {}).get('stow', DEFAULT_STOW)}")
-    if home_rel(SELF_DIR.parent) is not None and SELF_DIR.parent == df and not ignored:
-      print(f"          warning: add ^/{SELF_DIR.name} to {ign} so stow does not link the tool itself into ~")
   else:
     print("dotfiles  off ([dotfiles] in settings.toml)")
   extra = next((d / "targets.toml" for d in user_dirs() if (d / "targets.toml").exists()), None)
@@ -1606,9 +1626,9 @@ def main():
   p = sub.add_parser("current", help="print the applied theme and variant")
   p.set_defaults(fn=cmd_current)
 
-  p = sub.add_parser("new", help="start a theme from an existing one: themer new mytheme --from pare")
+  p = sub.add_parser("new", help="start a theme from an existing one: themer new mytheme --from ID")
   p.add_argument("id")
-  p.add_argument("--from", dest="base", default="pare")
+  p.add_argument("--from", dest="base", required=True, help="theme id, folder or theme.toml to start from")
   p.add_argument("--name")
   p.set_defaults(fn=cmd_new)
 
@@ -1622,7 +1642,7 @@ def main():
   p.add_argument("id")
   p.set_defaults(fn=cmd_remove)
 
-  p = sub.add_parser("edit", help="open a theme's theme.toml (copies a bundled theme to your config first)")
+  p = sub.add_parser("edit", help="open a theme's theme.toml (copies a theme given by path to your config first)")
   p.add_argument("theme", nargs="?")
   p.add_argument("--print", action="store_true", help="only print the path")
   p.set_defaults(fn=cmd_edit)
@@ -1654,7 +1674,7 @@ def main():
   theme_opts(p)
   p.set_defaults(fn=cmd_get)
 
-  p = sub.add_parser("set", help="change a value: themer set blue 'oklch(0.75 0.13 246)' [--theme pare --variant dark]")
+  p = sub.add_parser("set", help="change a value: themer set blue 'oklch(0.75 0.13 246)' [--theme ID --variant dark]")
   p.add_argument("token")
   p.add_argument("value")
   theme_opts(p)

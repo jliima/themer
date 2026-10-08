@@ -114,7 +114,7 @@ magenta = "oklch(0.72 0.16 350)"
 A design system whose `tokens.json` has color tokens with these names (a list of `{name, value: {dark, light}}`)
 becomes a theme with `themer import tokens.json --id <id> --name <Name>`. It takes fonts from `type.families` and
 corner radii from `radius`, writes aliases where the design system used them, and puts the result in
-`~/.config/themer/themes/<id>/`. The bundled Pare theme was made this way from the Pare design system.
+`~/.config/themer/themes/<id>/`. Pare, a design system with a `tokens.json`, was turned into a theme this way.
 
 ## Sharing a theme
 

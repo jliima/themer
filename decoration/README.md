@@ -20,7 +20,7 @@ window frames along with everything else. Themer writes `~/.config/themerdecorat
 Needs `cmake ninja-build g++ qt6-base-dev libkf6config-dev libkf6coreaddons-dev libkdecorations3-dev`.
 
 ```sh
-~/dotfiles/themer/decoration/build.sh   # builds, installs into ~/dotfiles/.local/lib/qt6/plugins, runs stow
+decoration/build.sh   # from a Themer clone: builds and installs into ~/.local/lib/qt6/plugins
 ```
 
 `~/.local/lib/qt6/plugins` must be on `QT_PLUGIN_PATH` for KWin (an `environment.d` file does it). Then select it in

@@ -7,44 +7,47 @@ Kate syntax themes, GTK 4 colors, Firefox `userChrome.css` / `userContent.css`, 
 Any design system that uses the same token names works the same way.
 
 ```sh
-themer apply --theme pare               # Pare, its default variant (dark)
-themer apply --theme pare:light         # or: themer apply --theme pare --variant light
+themer apply --theme my-theme           # a theme's default variant
+themer apply --theme my-theme:light     # or: themer apply --theme my-theme --variant light
 themer mode toggle                      # same theme, other variant
 themer themes                           # what is installed
 ```
 
-Bundled: **Pare** (`themes/pare`), cool blue-grey neutrals with tuned accents, dark and light.
+Themer ships no themes. A theme is a folder you keep in your own config (or dotfiles); see [THEMES.md](THEMES.md) for
+the token contract and a complete minimal example, and `themer import` to make one from a design system's
+`tokens.json`.
 
 Python 3.11 or newer, standard library only.
 
-## Install into dotfiles
+## Install
 
-Themer is made to live in a dotfiles folder that mirrors `~` and is linked with GNU Stow (`stow .` from the folder).
-Unpack it as `~/dotfiles/themer`, then:
+Clone this repository anywhere (for example `~/Git/themer`) and run the installer from the clone:
 
 ```sh
-cd ~/dotfiles/themer
-./install.sh                            # see below; needs stow (sudo apt install stow)
+git clone <this repository> ~/Git/themer
+cd ~/Git/themer
+./install.sh                            # plain: settings in ~/.config/themer
+./install.sh --dotfiles ~/dotfiles      # or: settings, themes and templates in a GNU Stow package; needs stow
 themer doctor                           # Darkly, fonts, Firefox profile, dotfiles, KDE tools
-themer apply --theme pare --dry-run     # every file it would write
-themer apply --theme pare
+themer install ./my-theme               # a folder with a theme.toml, if your dotfiles do not have one
+themer apply --theme my-theme --dry-run # every file it would write
+themer apply --theme my-theme
 ```
 
-`install.sh` does five things, and is safe to run again:
+`install.sh` is safe to run again. It does three things:
 
-1. Adds `^/themer$` to `~/dotfiles/.stow-local-ignore` so stow does not link the tool itself to `~/themer`. If the
-   file does not exist it is created with Stow's default ignore list first, because a local list replaces the
-   defaults.
-2. Moves an earlier plain install (a real `~/.config/themer` folder) into `~/dotfiles/.config/themer`, keeping a
-   backup in `~/.local/state/themer`, and removes an old `~/.local/bin/themer` link.
-3. Creates `~/dotfiles/.config/themer/` with `settings.toml` (dotfiles on), `themes/`, `templates/` and the Firefox
-   snippet folders, plus the example snippet. Existing files are never overwritten.
-4. Adds `~/dotfiles/.local/bin/themer`, a relative link to `themer/themer`.
-5. Runs `stow --no-folding --dir=~/dotfiles --target=~ .`, so `~/.config/themer` and `~/.local/bin/themer` point
-   into the dotfiles folder. This is the same as your `stow .`; links that already exist are left alone.
+1. Links `~/.local/bin/themer` to `themer` in the clone, so `git pull` there is all an update takes. Nothing is
+   copied into your dotfiles; the tool itself never lives there.
+2. Creates the config folder (`~/.config/themer`, or `<dotfiles>/.config/themer` with `--dotfiles`) with
+   `settings.toml`, `themes/`, `templates/` and the Firefox snippet folders, plus the example snippet. Existing
+   files are never overwritten. A real `~/.config/themer` folder from an earlier plain install is moved into the
+   dotfiles folder, with a backup in `~/.local/state/themer`.
+3. With `--dotfiles`, runs `stow --no-folding --dir=<dotfiles> --target=~ .`, so `~/.config/themer` points into the
+   dotfiles folder. This is the same as your own `stow .`; links that already exist are left alone.
 
-Other options: `./install.sh --dotfiles ~/elsewhere` for a different dotfiles folder, `./install.sh --no-dotfiles`
-for a plain install into `~/.config/themer` with no stow.
+If your dotfiles already contain `.config/themer` (settings, themes, templates), `stow .` first, then run
+`./install.sh --dotfiles <dotfiles>`; the dotfiles folder is found from where `~/.config/themer/settings.toml` is
+stowed from, so it can be cloned anywhere.
 
 Restart Firefox and open Qt apps once after the first apply. Konsole uses the "Themer" profile in new windows; Kate
 switches to the "Themer Dark" or "Themer Light" syntax theme.
@@ -54,7 +57,7 @@ switches to the "Themer Dark" or "Themer Light" syntax theme.
 With `[dotfiles]` on in `settings.toml`:
 
 - **Your files** (themes, template overrides, Firefox snippets, `settings.toml`, an optional `targets.toml`) live in
-  `~/dotfiles/.config/themer/`. Commands that create them (`new`, `edit`, `set`, `install`, `import`) write there and
+  `<dotfiles>/.config/themer/`. Commands that create them (`new`, `edit`, `set`, `install`, `import`) write there and
   run stow.
 - **Generated files Themer owns** are written into the dotfiles folder at their path relative to `~` and stowed:
   Plasma color schemes, Konsole color schemes and the Themer profile, Kate syntax themes, `~/.config/gtk-4.0/themer.css`
@@ -85,17 +88,17 @@ color schemes and profiles even before Themer runs there; `themer apply` then do
 | `themer apply [--theme ID[:variant]] [--variant dark\|light]` | Render every target and reload Plasma, KWin and GTK. Without `--theme`, re-applies the current theme. |
 | `themer apply --only kde,konsole` | Only some groups: `kde`, `konsole`, `kate`, `gtk`, `firefox`, `exports`. |
 | `themer mode dark` / `light` / `toggle` | Switch the current theme's variant. Bind `themer mode toggle` to a shortcut in System Settings. |
-| `themer themes`, `themer current` | Installed themes (bundled, user, edited) and the applied one. |
+| `themer themes`, `themer current` | Installed themes and the applied one. |
 | `themer check --theme ID` | Text contrast report for every variant. Exits 1 if a pair fails. |
 | `themer validate --theme ID` | Checks the theme fills the token contract. `apply` refuses a theme that does not. |
 | `themer show`, `themer tokens` | Swatches in the terminal; every resolved token. |
 | `themer get accent`, `themer get 'accent \| rgb' --theme ID` | One value, for scripts. |
-| `themer set blue '#62b5fb' [--theme ID --variant dark]` | Change a value in place. A bundled theme is copied to your config first. |
-| `themer new ID --from pare [--name "My Theme"]` | Start a theme from an existing one. |
-| `themer edit [ID]` | Open a theme in `$EDITOR` (bundled themes are copied first). |
+| `themer set blue '#62b5fb' [--theme ID --variant dark]` | Change a value in place. |
+| `themer new ID --from OTHER [--name "My Theme"]` | Start a theme from an installed one (or a folder). |
+| `themer edit [ID]` | Open a theme in `$EDITOR` (a theme given by path is copied to your themes first). |
 | `themer install PATH` | Install a theme folder, `theme.toml` or `.zip` into your themes folder. |
 | `themer import tokens.json --id ID --name NAME` | Make a theme from a design system's `tokens.json`. |
-| `themer remove ID` | Remove a user theme. Removing an edited bundled theme brings the original back. |
+| `themer remove ID` | Remove an installed theme. |
 | `themer undo` | Restore the files the last apply changed (15 runs of backups in `~/.local/state/themer/backups`). |
 | `themer stow` | Run the configured stow command (dotfiles mode). |
 | `themer screens` | Recommended Plasma scale for each screen, with `kscreen-doctor` commands. |
@@ -103,25 +106,24 @@ color schemes and profiles even before Themer runs there; `themer apply` then do
 ## How it fits together
 
 ```
-~/dotfiles/
-  .stow-local-ignore         ^/themer$ keeps the tool itself out of ~
-  themer/                    the tool (not stowed)
-    themer                   the command
-    defaults.toml            fallbacks every theme is layered over: roles, syntax, terminal colors, fonts, KDE
-    contract.toml            the token names a theme must resolve
-    targets.toml             what gets written where (same for every theme)
-    templates/               one file per app integration
-    themes/pare/             the bundled Pare theme
-    skel/                    what install.sh copies into .config/themer
-  .local/bin/themer          link to ../../themer/themer, stowed to ~/.local/bin/themer
-  .config/themer/            stowed to ~/.config/themer
-    settings.toml            machine settings: dotfiles, default theme, Firefox profile
-    themes/<id>/             your themes, and edited copies of bundled ones (these win)
-    templates/               your template overrides and additions (these win)
-    targets.toml             optional: read on top of the shipped one, to add, replace or disable targets
-    firefox/chrome/*.css     snippets added to the end of userChrome.css
-    firefox/content/*.css    snippets added to the end of userContent.css
-  .local/share/..., .config/gtk-4.0/themer.css, .config/wal/...   generated by themer apply, stowed
+~/Git/themer/                the tool, cloned anywhere; ~/.local/bin/themer links to its themer script
+  themer                     the command
+  defaults.toml              fallbacks every theme is layered over: roles, syntax, terminal colors, fonts, KDE
+  contract.toml              the token names a theme must resolve
+  targets.toml               what gets written where (same for every theme)
+  templates/                 one file per app integration
+  decoration/                the KWin window decoration (build.sh)
+  skel/                      what install.sh copies into the config folder
+
+<dotfiles>/.config/themer/   your side, stowed to ~/.config/themer (or just ~/.config/themer without dotfiles)
+  settings.toml              machine settings: dotfiles, default theme, Firefox profile
+  themes/<id>/               your themes
+  templates/                 your template overrides and additions (these win)
+  targets.toml               optional: read on top of the shipped one, to add, replace or disable targets
+  firefox/chrome/*.css       snippets added to the end of userChrome.css
+  firefox/content/*.css      snippets added to the end of userContent.css
+
+<dotfiles>/.local/share/..., .config/gtk-4.0/themer.css, ...   generated by themer apply, stowed
 ```
 
 Lookup order for a template is `~/.config/themer/templates`, then the theme's own `templates/` folder, then the
@@ -130,7 +132,7 @@ them without touching the theme.
 
 Names that let apps follow theme changes without reselecting anything stay fixed: the Konsole profile is
 `Themer.profile` and Kate's syntax themes are "Themer Dark" and "Themer Light". Plasma color schemes and Konsole
-color schemes carry the theme name (`PareDark`, `PareLight.colorscheme`) so you can still pick them by hand.
+color schemes carry the theme name (`MyThemeDark`, `MyThemeLight.colorscheme`) so you can still pick them by hand.
 
 ## Window decoration and rounded corners
 
@@ -183,7 +185,7 @@ name starts with `*`, so `*GitHub` shows just its icon.
 See [THEMES.md](THEMES.md) for the token contract and a complete minimal example. The short version:
 
 ```sh
-themer new nord-ish --from pare --name "Nord-ish"
+themer new nord-ish --from my-theme --name "Nord-ish"
 themer edit nord-ish                     # change colors
 themer check --theme nord-ish
 themer apply --theme nord-ish
@@ -219,7 +221,7 @@ colors, terminal colors, hue steps, fonts and shapes fall back to `defaults.toml
 
 Template syntax: `{{ token }}` gives `#rrggbb`; filters chain with `|`:
 
-| Filter | Result for `accent` in Pare dark |
+| Filter | Result for an `accent` of `#5faff1` |
 | --- | --- |
 | `rgb` | `95,175,241` (KDE config files) |
 | `strip` | `5faff1` |
@@ -231,15 +233,15 @@ Template syntax: `{{ token }}` gives `#rrggbb`; filters chain with `|`:
 | `pick(A, B)` | on a boolean token: `{{ is-dark \| pick(Darcula, Default) }}` gives `Darcula` in dark variants, else `Default` |
 | `oklch` | `oklch(0.730 0.125 246.0)` |
 
-Names available in templates besides the tokens: `theme` (`pare`), `name` (`Pare`), `variant` (`dark`), `Variant`
-(`Dark`), `scheme` (`PareDark`), `is-dark`, `is-light`, and every key of the theme's non-color tables as
+Names available in templates besides the tokens: `theme` (`my-theme`), `name` (`My Theme`), `variant` (`dark`),
+`Variant` (`Dark`), `scheme` (`MyThemeDark`), `is-dark`, `is-light`, and every key of the theme's non-color tables as
 `table.key`: `fonts.sans`, `fonts.mono-size`, `fonts.ui-weight`, `shape.radius-sm`, `kde.widget-style`,
 `konsole.margin`, `firefox.compact`. Numbers take `px`, `int` and `div(2)`.
 
 Exports refreshed on every apply, for scripts and apps without a template: `~/.cache/themer/colors.json`,
 `colors.css` (CSS variables `--themer-*`, every variant), `colors.sh` (`THEMER_ACCENT` and friends), and
 pywal-compatible `~/.cache/wal/colors.json`, `colors.sh`, `colors.css`. Existing pywal templates can render from
-the same palette with `wal --theme ~/.config/wal/colorschemes/dark/pare.json`.
+the same palette with `wal --theme ~/.config/wal/colorschemes/dark/my-theme.json`.
 
 ## What it writes
 
