@@ -6,8 +6,9 @@
 #   ./install.sh --no-plugins         skip the plugins below
 #
 # It also installs the plugins in plugins/ for the apps it finds: VS Code (`code` on PATH), the JetBrains IDEs
-# (a versioned folder in ~/.config/JetBrains) and Firefox (an installation in /usr/lib or /opt; asks for sudo). A
-# plugin that fails to install is reported and does not stop the rest.
+# (a versioned folder in ~/.config/JetBrains), Firefox (an installation in /usr/lib or /opt; asks for sudo) and the
+# browser extensions' native host (Firefox or a Chromium-based browser). A plugin that fails to install is reported and
+# does not stop the rest.
 # Themer ships no themes; install one with `themer install PATH` or keep them in <dotfiles>/.config/themer/themes.
 # The templates are yours too: only the example templates/kde is copied, and only if you have no templates/kde yet.
 # Safe to run again: existing files are kept. A previous plain install (a real ~/.config/themer folder) is moved into
@@ -95,6 +96,14 @@ install_plugins() {
   command -v code >/dev/null && found+=("VS Code:$here/plugins/vscode/install.sh")
   compgen -G "${XDG_CONFIG_HOME:-$HOME/.config}/JetBrains/*20[0-9][0-9].[0-9]*" >/dev/null \
     && found+=("JetBrains IDEs:$here/plugins/jetbrains/install.sh")
+  # The native messaging host for the Dark Reader and Stylus forks; registering it needs no root.
+  local b
+  for b in .mozilla chromium google-chrome BraveSoftware/Brave-Browser vivaldi microsoft-edge; do
+    if [[ -d "$HOME/$b" || -d "${XDG_CONFIG_HOME:-$HOME/.config}/$b" ]]; then
+      found+=("browser extensions:$here/plugins/browser/install.sh")
+      break
+    fi
+  done
   local fx
   for fx in /usr/lib/firefox /usr/lib/firefox-esr /usr/lib64/firefox /opt/firefox; do
     if [[ -x "$fx/firefox" && -d "$fx/defaults/pref" ]]; then

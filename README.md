@@ -46,9 +46,9 @@ themer apply --theme my-theme
    with a backup in `~/.local/state/themer`.
 3. With `--dotfiles`, runs `stow --no-folding --dir=<dotfiles> --target=~ .`, so `~/.config/themer` points into the
    dotfiles folder. This is the same as your own `stow .`; links that already exist are left alone.
-4. Installs the plugins of the apps it finds: VS Code (`code` on PATH) and the JetBrains IDEs (a versioned folder in
-   `~/.config/JetBrains`). A plugin that fails to install (no npm, no JDK) is reported and does not stop the rest;
-   `--no-plugins` skips them.
+4. Installs the plugins of the apps it finds: VS Code (`code` on PATH), the JetBrains IDEs (a versioned folder in
+   `~/.config/JetBrains`) and the native host of the browser extensions (Firefox or a Chromium-based browser). A
+   plugin that fails to install (no npm, no JDK) is reported and does not stop the rest; `--no-plugins` skips them.
 
 If your dotfiles already contain `.config/themer` (settings, themes, templates), `stow .` first, then run
 `./install.sh --dotfiles <dotfiles>`; the dotfiles folder is found from where `~/.config/themer/settings.toml` is
@@ -56,8 +56,9 @@ stowed from, so it can be cloned anywhere.
 
 Apps that need more than a rendered file have a plugin under `plugins/`: [VS Code](plugins/vscode/README.md) (reloads
 the window when a theme is re-rendered), [JetBrains IDEs](plugins/jetbrains/README.md) (live reload of running
-IDEs, fonts) and [Firefox](plugins/firefox/README.md) (default zoom, prefs and a UI font scale, live). `install.sh`
-sets them up; run a plugin's own `install.sh` to rebuild it after a `git pull`.
+IDEs, fonts), [Firefox](plugins/firefox/README.md) (default zoom, prefs and a UI font scale, live) and
+[browser extensions](plugins/browser/README.md) (Dark Reader and Stylus forks that restyle open tabs on every apply,
+in Firefox and Chromium). `install.sh` sets them up; run a plugin's own `install.sh` to rebuild it after a `git pull`.
 
 Restart Firefox and open Qt apps once after the first apply. Konsole uses the "Themer" profile in new windows; Kate
 switches to the "Themer Dark" or "Themer Light" syntax theme.
@@ -96,7 +97,7 @@ color schemes and profiles even before Themer runs there; `themer apply` then do
 | Command | What it does |
 | --- | --- |
 | `themer apply [--theme ID[:variant]] [--variant dark\|light]` | Render every target and reload Plasma, KWin and GTK. Without `--theme`, re-applies the current theme. |
-| `themer apply --only kde,konsole` | Only some groups: `kde`, `konsole`, `kate`, `gtk`, `firefox`, `vscode`, `jetbrains`, `exports`. |
+| `themer apply --only kde,konsole` | Only some groups: `kde`, `konsole`, `kate`, `gtk`, `firefox`, `browser`, `vscode`, `jetbrains`, `exports`. |
 | `themer mode dark` / `light` / `toggle` | Switch the current theme's variant. Bind `themer mode toggle` to a shortcut in System Settings. |
 | `themer themes`, `themer current` | Installed themes and the applied one. |
 | `themer check --theme ID` | Text contrast report for every variant. Exits 1 if a pair fails. |
@@ -251,6 +252,7 @@ Exports refreshed on every apply, for scripts and apps without a template: `~/.c
 | GTK 4 | `~/.config/gtk-4.0/themer.css`, an import line in `gtk.css` | libadwaita accent, header bars, sidebars, cards. |
 | Firefox | `<profile>/chrome/themer-colors.css`, `userChrome.css`, `userContent.css`, lines in `user.js` | Enables userChrome loading, compact density, websites follow the variant. |
 | JetBrains IDEs | `~/.config/JetBrains/<IDE>/colors/Themer.icls`, `~/.local/share/JetBrains/<IDE>/themer/lib/themer-theme.jar` | Needs the plugin in [plugins/jetbrains/](plugins/jetbrains/README.md) to restyle running IDEs. |
+| Dark Reader, Stylus | `~/.cache/themer/browser/tokens.json`, `darkreader.json` | Read by the native host in [plugins/browser/](plugins/browser/README.md), which pushes them to the Dark Reader and Stylus forks: page colors, Dark Reader settings and `var(--themer-*)` in user styles, live. |
 | VS Code | `~/.vscode/extensions/themer.themer-*/themes/themer-{dark,light}.json` | Needs the extension in [plugins/vscode/](plugins/vscode/README.md), which reloads the window when a theme is re-rendered. |
 
 Files marked dotfiles in the table above (color schemes, Konsole, Kate, GTK css) go through your dotfiles folder when

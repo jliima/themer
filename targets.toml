@@ -242,6 +242,23 @@ template = "vscode/theme.json"
 output = "~/.vscode/extensions/themer.themer-*/themes/themer-{{ variant }}.json"
 variants = "all"
 
+# ---- Browser extensions ----------------------------------------------------------------------------------------------
+
+# Read by the Themer native messaging host (plugins/browser), which pushes them to the Dark Reader and Stylus forks
+# while the browser runs: open tabs restyle at once. tokens.json is the applied variant's tokens (Stylus turns them into
+# the --themer-* CSS variables); darkreader.json is Dark Reader settings from your template: mode, colors, contrast, ...
+[[target]]
+name = "Browser extension tokens"
+group = "browser"
+format = "json"
+output = "~/.cache/themer/browser/tokens.json"
+
+[[target]]
+name = "Dark Reader settings"
+group = "browser"
+template = "browser/darkreader.json"
+output = "~/.cache/themer/browser/darkreader.json"
+
 # ---- Exports for everything else -------------------------------------------------------------------------------------
 
 [[target]]
