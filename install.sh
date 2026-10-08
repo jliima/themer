@@ -33,7 +33,7 @@ state="${XDG_STATE_HOME:-$HOME/.local/state}/themer"
 # Copies every file under $1 to $2 unless it already exists there.
 copy_missing() {
   local src="$1" dst="$2" rel
-  (cd "$src" && find . -type f -o -type l) | while read -r rel; do
+  (cd "$src" && find . -type f) | while read -r rel; do
     rel="${rel#./}"
     if [[ ! -e "$dst/$rel" && ! -L "$dst/$rel" ]]; then
       mkdir -p "$(dirname "$dst/$rel")"
@@ -92,8 +92,8 @@ say "dotfiles: $dotfiles"
 
 # Move a previous plain install (a real ~/.config/themer folder) into the dotfiles folder.
 old="${XDG_CONFIG_HOME:-$HOME/.config}/themer"
-# Skip when ~/.config/themer already is the dotfiles copy (a stowed or folded link somewhere up the path).
-if [[ -d "$old" && ! -L "$old" && "$(readlink -f "$old")" != "$(readlink -f "$conf" 2>/dev/null || echo "$conf")" ]]; then
+# Skip when it only holds links into the dotfiles copy (a stowed folder): there is nothing of a plain install in it.
+if [[ -d "$old" && ! -L "$old" && -n "$(find "$old" -type f -print -quit)" ]]; then
   mkdir -p "$state/pre-dotfiles-$stamp" "$conf"
   cp -a "$old" "$state/pre-dotfiles-$stamp/"
   copy_missing "$old" "$conf" > /dev/null
