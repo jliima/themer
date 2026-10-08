@@ -3,8 +3,9 @@
 # Each [[target]] has:
 #   name      label shown in output
 #   group     used by `themer apply --only kde,firefox`
-#   template  file under templates/; ~/.config/themer/templates, then the theme's own templates/ folder,
-#             override the shipped one
+#   template  file under templates/, looked up in ~/.config/themer/templates, then the theme's own templates/
+#             folder, then templates/ next to this file (only the kde example is kept there). A target whose
+#             template is not found is skipped with a note.
 #   format    a built-in output: json, css, sh, pywal, pywal-sh, pywal-css
 #   output    destination; may use {{ tokens }} ({{ scheme }}, {{ variant }}, {{ theme }}) and {firefox}. A * ? or [..]
 #             in it is matched against the folders that exist (every installed IDE version); no match, no file.

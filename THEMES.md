@@ -1,8 +1,8 @@
 # Writing a Themer theme
 
-A theme is a folder with a `theme.toml`, installed under `~/.config/themer/themes/<id>/` (or shipped in
-`themes/<id>/` next to the tool). It may also carry a `README.md`, a `templates/` folder whose files replace the
-shipped templates of the same path while the theme is applied, and `firefox/chrome/` and `firefox/content/` folders
+A theme is a folder with a `theme.toml`, installed under `~/.config/themer/themes/<id>/`. Themer ships no
+themes. It may also carry a `README.md`, a `templates/` folder whose files replace the templates of the same path
+while the theme is applied, and `firefox/chrome/` and `firefox/content/` folders
 of CSS snippets that are appended to `userChrome.css` and `userContent.css` (a user snippet with the same file name
 replaces the theme's).
 

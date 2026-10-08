@@ -5,6 +5,7 @@
 #   ./install.sh --dotfiles ~/dots    your settings, themes and templates live in the GNU Stow package ~/dots
 #
 # Themer ships no themes; install one with `themer install PATH` or keep them in <dotfiles>/.config/themer/themes.
+# The templates are yours too: only the example templates/kde is copied, and only if you have no templates/kde yet.
 # Safe to run again: existing files are kept. A previous plain install (a real ~/.config/themer folder) is moved into
 # the dotfiles folder, with a backup in ~/.local/state/themer.
 set -euo pipefail
@@ -16,7 +17,7 @@ dotfiles=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dotfiles) dotfiles="$(cd "${2/#\~/$HOME}" && pwd)"; mode="dotfiles"; shift 2 ;;
-    -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
 done
@@ -48,6 +49,11 @@ seed() {
   local conf="$1" enabled="$2"
   mkdir -p "$conf/themes" "$conf/templates" "$conf/firefox/chrome" "$conf/firefox/content"
   copy_missing "$here/skel/.config/themer" "$conf"
+  # The example template, as a whole folder and only when there is none yet, so a customized one is never touched.
+  if [[ ! -e "$conf/templates/kde" && ! -L "$conf/templates/kde" ]]; then
+    cp -r "$here/templates/kde" "$conf/templates/kde"
+    say "added $conf/templates/kde (example template)"
+  fi
   if ! grep -q '^\[dotfiles\]' "$conf/settings.toml"; then
     # An older settings.toml: add the dotfiles table from the skeleton.
     printf '\n' >> "$conf/settings.toml"

@@ -1,7 +1,7 @@
 # Themer for VS Code
 
 The VS Code part of Themer. Themer renders a dark and a light color theme ("Themer Dark", "Themer Light") from the
-template `templates/vscode/theme.json` into the installed extension. This extension adds what a theme file cannot do:
+template `vscode/theme.json` (in your Themer templates) into the installed extension. This extension adds what a theme file cannot do:
 VS Code reads a theme file once and never again, so a theme or variant that Themer re-renders would keep the old
 colors until the window is reloaded. The extension watches the rendered files and reloads the window when their
 content changes (a notification instead while a debug session runs, or with `themer.autoReload` off).

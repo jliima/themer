@@ -837,12 +837,12 @@ def load_targets():
   return list(targets.values())
 
 
-def template_path(name, pal):
-  """User templates override the theme's own, which override the shipped ones."""
+def find_template(name, pal):
+  """User templates override the theme's own, which override the example ones next to this script. None if absent."""
   for d in (*[u / "templates" for u in user_dirs()], pal["_dir"] / "templates", SELF_DIR / "templates"):
     if (d / name).exists():
       return d / name
-  die(f"template {name} not found")
+  return None
 
 
 def expand_path(p, ctx, pal):
@@ -1085,12 +1085,18 @@ def cmd_apply(args):
       if outs is None:
         skipped.append(f"{t['name']} (no Firefox profile found)")
         break
+      if not outs:
+        continue
+      src = find_template(t["template"], pal) if "format" not in t else None
+      if "format" not in t and src is None:
+        skipped.append(f"{t['name']} (no template {t['template']} in {user_dir() / 'templates'})")
+        break
       if "format" in t:
         text = FORMATS[t["format"]](pal, v)
       elif t.get("archive"):
-        text = render_archive(template_path(t["template"], pal), ctx, t["template"])
+        text = render_archive(src, ctx, t["template"])
       else:
-        text = render(template_path(t["template"], pal).read_text(), ctx, t["template"])
+        text = render(src.read_text(), ctx, t["template"])
       for out in outs:
         shown = out
         if df and t.get("dotfiles") and home_rel(out) is not None:
