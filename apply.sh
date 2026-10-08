@@ -5,8 +5,7 @@
 #
 # Themer has already written the editor scheme (colors/Themer.icls) and the UI theme plugin
 # (themer/lib/themer-theme.jar) into every installed IDE, and ~/.cache/themer/jetbrains/themer.theme.json for the live
-# reload. This script installs the reload plugin next to them, removes what the old Pywal setup left behind, and asks
-# running IDEs to reload.
+# reload. This script installs the reload plugin next to them and asks running IDEs to reload.
 # Requires: unzip, curl. Build the reload plugin once: cd reload-plugin && ./gradlew buildPlugin
 set -euo pipefail
 
@@ -20,14 +19,6 @@ RELOAD_PORT=9988
 ide_dirs() {
   find "$1" -maxdepth 1 -mindepth 1 -type d -name '*20[0-9][0-9].[0-9]*' 2>/dev/null
 }
-
-# ── Old Pywal files ──────────────────────────────────────────────────────────
-while IFS= read -r ide_dir; do
-  rm -rf "$ide_dir/pywal" "$ide_dir/pywal-reload-plugin" "$ide_dir/pywal-theme.jar"
-done < <(ide_dirs "$SHARE_DIR")
-while IFS= read -r ide_dir; do
-  rm -f "$ide_dir/colors/pywal-color-scheme.icls"
-done < <(ide_dirs "$CONFIG_DIR")
 
 # ── Reload plugin ────────────────────────────────────────────────────────────
 if [[ -f "$RELOAD_PLUGIN_ZIP" ]]; then

@@ -32,7 +32,7 @@ class ThemerReloadStartupActivity : ProjectActivity {
     }
 
     /**
-     * Once per IDE config folder, selects the Themer theme and scheme. An IDE that last ran the old Pywal theme falls
+     * Once per IDE config folder, selects the Themer theme and scheme. An IDE that last ran another theme falls
      * back to a stock one, and a later themer apply cannot fix that while the IDE is closed.
      */
     private fun switchOnce() {

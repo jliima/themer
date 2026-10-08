@@ -1,4 +1,4 @@
-# jetbrains-pywal-theme
+# jetbrains-themer
 
 A dynamic theme for all JetBrains IDEs that follows the desktop theme from Themer (the Pare design system in
 [jliima/dotfiles](https://github.com/jliima/dotfiles)). Dark and light variants both work: the IDE switches with
@@ -6,8 +6,7 @@ A dynamic theme for all JetBrains IDEs that follows the desktop theme from Theme
 
 Covers both the **IDE UI** (chrome, tool windows, menus) and the **editor** (syntax highlighting, VCS colors, diff gutter).
 
-> This is a personal theme built around Themer. It is not published to the JetBrains Marketplace. (The repo name is
-> from the pywal days, when this followed wal's palette.)
+> This is a personal theme built around Themer. It is not published to the JetBrains Marketplace.
 
 ---
 
@@ -34,8 +33,8 @@ themer apply ──► colors/Themer.icls, themer-theme.jar, themer.theme.json �
 ## Project structure
 
 ```
-jetbrains-pywal-theme/
-├── apply.sh                       # Themer's reload step: installs the reload plugin, cleans up Pywal files, triggers reload
+jetbrains-themer/
+├── apply.sh                       # Themer's reload step: installs the reload plugin, triggers reload
 ├── scripts/
 │   └── diff-color-changes.py      # Diff a hand-edited .icls against what Themer rendered (see the update-color-scheme skill)
 └── reload-plugin/                 # Kotlin/Gradle IntelliJ plugin for live reload
@@ -56,7 +55,7 @@ jetbrains-pywal-theme/
 
 ## Setup
 
-The repo must be at `~/JetBrainsProjects/jetbrains-pywal-theme/` (the "JetBrains UI theme" target runs `apply.sh` from there).
+The repo must be at `~/JetBrainsProjects/jetbrains-themer/` (the "JetBrains UI theme" target runs `apply.sh` from there).
 
 1. Build the reload plugin once: `cd reload-plugin && ./gradlew buildPlugin`.
 2. `themer apply --only jetbrains --force` (the dotfiles already have the targets). From then on `themer apply` and
@@ -64,8 +63,7 @@ The repo must be at `~/JetBrainsProjects/jetbrains-pywal-theme/` (the "JetBrains
 3. Restart the IDEs once. Each IDE selects the Themer theme and scheme on its first start with the plugin (a marker
    file `options/themer-theme-selected` in its config folder records it); after that Themer drives them.
 
-`apply.sh` installs the reload plugin jar into every IDE, removes the old `pywal*` files and calls
-`POST localhost:9988/reload`. It is idempotent.
+`apply.sh` installs the reload plugin jar into every IDE and calls `POST localhost:9988/reload`. It is idempotent.
 
 ## Customizing the theme
 

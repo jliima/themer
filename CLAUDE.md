@@ -10,7 +10,7 @@ themer apply (dotfiles; targets in ~/.config/themer/targets.toml, templates in .
   -> ~/.config/JetBrains/<IDE>/colors/Themer.icls                (themer.icls)
   -> ~/.local/share/JetBrains/<IDE>/themer/lib/themer-theme.jar  (plugin/, zipped by Themer: archive = true)
   -> ~/.cache/themer/jetbrains/themer.theme.json                 (plugin/theme/themer.theme.json), then runs apply.sh
-       apply.sh: installs the reload plugin jar into each IDE, removes old pywal* files, POST localhost:9988/reload
+       apply.sh: installs the reload plugin jar into each IDE, POST localhost:9988/reload
 ```
 
 Apply after any change: `themer apply --only jetbrains --force`.
