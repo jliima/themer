@@ -16,8 +16,6 @@
 #   reload    built-in action (kde-colors, kwin, kde-style, gtk) or a shell command, run when the file changed
 #   dotfiles  true: with [dotfiles] on in settings.toml, write the file into the dotfiles folder at the same path
 #             relative to ~ and let stow link it. Use it for whole files Themer owns, not for merged ones.
-#   adopt     path under your themer folder: if the output exists and was not written by Themer, keep a copy
-#             there first (used to keep an old userChrome.css as a disabled snippet)
 #   enabled   false to skip
 #
 # Add your own: drop a template in ~/.config/themer/templates/ and add a [[target]] to
@@ -176,14 +174,12 @@ name = "Firefox userChrome.css"
 group = "firefox"
 template = "firefox/userChrome.css"
 output = "{firefox}/chrome/userChrome.css"
-adopt = "firefox/chrome/_previous-userChrome.css"
 
 [[target]]
 name = "Firefox userContent.css"
 group = "firefox"
 template = "firefox/userContent.css"
 output = "{firefox}/chrome/userContent.css"
-adopt = "firefox/content/_previous-userContent.css"
 
 [[target]]
 name = "Firefox prefs"

@@ -44,10 +44,10 @@ copy_missing() {
   done
 }
 
-# Copies the skeleton (settings, example snippets) without overwriting anything that exists.
+# Copies the skeleton (settings) without overwriting anything that exists.
 seed() {
   local conf="$1" enabled="$2"
-  mkdir -p "$conf/themes" "$conf/templates" "$conf/firefox/chrome" "$conf/firefox/content"
+  mkdir -p "$conf/themes" "$conf/templates"
   copy_missing "$here/skel/.config/themer" "$conf"
   # The example template, as a whole folder and only when there is none yet, so a customized one is never touched.
   if [[ ! -e "$conf/templates/kde" && ! -L "$conf/templates/kde" ]]; then
@@ -107,7 +107,7 @@ if [[ -d "$old" && ! -L "$old" && -n "$(find "$old" -type f -print -quit)" ]]; t
   say "moved $old into $conf (backup in $state/pre-dotfiles-$stamp)"
 fi
 
-# Settings, folders and the example Firefox snippet.
+# Settings and folders.
 seed "$conf" true
 link_command
 
