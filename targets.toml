@@ -6,7 +6,9 @@
 #   template  file under templates/; ~/.config/themer/templates, then the theme's own templates/ folder,
 #             override the shipped one
 #   format    a built-in output: json, css, sh, pywal, pywal-sh, pywal-css
-#   output    destination; may use {{ tokens }} ({{ scheme }}, {{ variant }}, {{ theme }}) and {firefox}
+#   output    destination; may use {{ tokens }} ({{ scheme }}, {{ variant }}, {{ theme }}) and {firefox}. A * ? or [..]
+#             in it is matched against the folders that exist (every installed IDE version); no match, no file.
+#   archive   true: template is a folder; every file in it is rendered and the output is a zip of them (a .jar too)
 #   variants  "active" (default) renders the applied variant, "all" renders every variant the theme has
 #   mode      "write" (default) replaces the file, "merge-ini" sets only the listed keys in a KDE config file,
 #             "ensure-lines" adds or replaces single lines (user.js)

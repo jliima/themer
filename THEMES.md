@@ -59,7 +59,7 @@ Everything else has a default you can override:
 
 | Group | Tokens | Default |
 | --- | --- | --- |
-| Hue steps | `<hue>-bright`, `<hue>-dim`, `<hue>-soft` | Derived in OKLCH from the base hue: brighter, a mid tone for borders, a tinted ground. |
+| Hue steps | `<hue>-bright`, `<hue>-dim`, `<hue>-mid`, `<hue>-soft` | Derived in OKLCH from the base hue: brighter, a mid tone for borders, a muted ground, a tinted ground. |
 | Roles | `accent`, `accent-hover`, `accent-soft`, `focus-ring`, `link`, `success`, `warning`, `danger`, `info` and their `-soft` grounds | Blue accent, green success, orange warning, red danger, cyan info. |
 | Fills | `on-accent`, `selection`, `text-inverse` | Dark: `bg-deep` text on fills, a mid blue selection. Light: white text, a pale blue selection. |
 | KDE | `kde-selection`, `kde-selection-text` | `selection` with `text`. Use `accent` with `on-accent` for vivid selections. |

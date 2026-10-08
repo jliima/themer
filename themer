@@ -15,6 +15,8 @@ Python 3.11+ standard library only.
 
 import argparse
 import datetime as _dt
+import glob
+import io
 import json
 import math
 import os
@@ -24,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
+import zipfile
 from pathlib import Path
 
 VERSION = "2.0.0"
@@ -34,7 +37,7 @@ STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "the
 CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / "themer"
 VARIANTS = ("dark", "light")
 HUES = ("red", "orange", "yellow", "green", "cyan", "blue", "violet", "magenta")
-STEPS = ("bright", "dim", "soft")
+STEPS = ("bright", "dim", "mid", "soft")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}$")
 
 
@@ -290,11 +293,15 @@ def derive_step(base, step, variant):
       return oklch_to_hex(min(L + 0.07, 0.93), C * 0.9, H)
     if step == "dim":
       return oklch_to_hex(0.52, C * 0.75, H)
+    if step == "mid":
+      return oklch_to_hex(0.38, C * 0.6, H)
     return oklch_to_hex(0.27, min(C * 0.4, 0.065), H)
   if step == "bright":
     return oklch_to_hex(L - 0.07, C * 0.95, H)
   if step == "dim":
     return oklch_to_hex(min(L + 0.14, 0.82), C * 0.7, H)
+  if step == "mid":
+    return oklch_to_hex(0.87, C * 0.4, H)
   return oklch_to_hex(0.94, min(C * 0.25, 0.04), H)
 
 
@@ -457,6 +464,10 @@ def apply_filter(ctx, value, name, arg):
     return str(value).upper()
   if name == "lower":
     return str(value).lower()
+  if name == "pick":
+    # {{ is-dark | pick(Darcula, Default) }}: the first value when the token is on (1, true), else the second
+    yes, no = (a.strip().strip("\"'") for a in arg.split(",", 1))
+    return yes if str(value).lower() in ("1", "true") else no
   if is_color:
     r, g, b = (round(c * 255) for c in hex_to_rgb(value))
     if name == "rgb":
@@ -543,9 +554,7 @@ def fmt_pywal(pal, theme):
   dark = theme == "dark"
 
   def ramp(hue):
-    L, C, H = hex_to_oklch(c[hue])
-    mid = oklch_to_hex(0.38, C * 0.6, H) if dark else oklch_to_hex(0.87, C * 0.4, H)
-    return [c[f"{hue}-soft"], mid, c[f"{hue}-dim"], mix(c[f"{hue}-dim"], c[hue], 0.5), c[hue]]
+    return [c[f"{hue}-soft"], c[f"{hue}-mid"], c[f"{hue}-dim"], mix(c[f"{hue}-dim"], c[hue], 0.5), c[hue]]
 
   sp = {"background": c["bg"], "foreground": c["text"], "cursor": c["text"]}
   for i, k in enumerate(("bg-deep", "bg-sunken", "bg", "surface", "surface-raised")):
@@ -667,7 +676,8 @@ class Writer:
     if path.is_symlink():
       # A stowed file: write into the dotfiles copy instead of replacing the link.
       path = Path(os.path.realpath(path))
-    old = path.read_text() if path.exists() else None
+    binary = isinstance(text, bytes)
+    old = (path.read_bytes() if binary else path.read_text()) if path.exists() else None
     if old == text:
       return False
     self.changed.append(path)
@@ -676,7 +686,7 @@ class Writer:
     self._backup(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".themer-tmp")
-    tmp.write_text(text)
+    tmp.write_bytes(text) if binary else tmp.write_text(text)
     os.replace(tmp, path)
     return True
 
@@ -820,6 +830,40 @@ def expand_path(p, ctx, pal):
       return None
     p = p.replace("{firefox}", str(prof))
   return Path(os.path.expanduser(p))
+
+
+def expand_outputs(p, ctx, pal):
+  """The files a target writes: expand_path(), with `*`, `?` and `[...]` matched against the folders that exist, so
+  one target can feed every installed version of an app. No match, nothing to write. None: no Firefox profile."""
+  out = expand_path(p, ctx, pal)
+  if out is None or not re.search(r"[*?\[]", str(out)):
+    return None if out is None else [out]
+  parts = out.parts
+  last = max(i for i, part in enumerate(parts) if re.search(r"[*?\[]", part))
+  return [Path(m) / Path(*parts[last + 1:]) for m in sorted(glob.glob(str(Path(*parts[:last + 1]))))]
+
+
+def render_archive(folder, ctx, where):
+  """A template folder as a zip (a .jar is one): every file rendered, in name order with META-INF first, with a fixed
+  timestamp so an unchanged theme gives identical bytes."""
+  def order(f):
+    rel = f.relative_to(folder)
+    return (rel.parts[0] != "META-INF", rel.as_posix())
+
+  files = sorted((f for f in folder.rglob("*") if f.is_file()), key=order)
+  buf = io.BytesIO()
+  with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+    for f in files:
+      rel = f.relative_to(folder).as_posix()
+      try:
+        data = render(f.read_text(), ctx, f"{where}/{rel}").encode()
+      except UnicodeDecodeError:
+        data = f.read_bytes()
+      info = zipfile.ZipInfo(rel, (1980, 1, 1, 0, 0, 0))
+      info.compress_type = zipfile.ZIP_DEFLATED
+      info.external_attr = 0o644 << 16
+      z.writestr(info, data)
+  return buf.getvalue()
 
 
 def run_reload(action, ctx, quiet=False):
@@ -1011,32 +1055,35 @@ def cmd_apply(args):
     vs = variants_of(pal) if t.get("variants", "active") == "all" else (variant,)
     for v in vs:
       ctx = ctxs[v]
-      out = expand_path(t["output"], ctx, pal)
-      if out is None:
+      outs = expand_outputs(t["output"], ctx, pal)
+      if outs is None:
         skipped.append(f"{t['name']} (no Firefox profile found)")
         break
-      shown = out
-      if df and t.get("dotfiles") and home_rel(out) is not None:
-        stowed.append((out, df / home_rel(out)))
-        out = df / home_rel(out)
-        shown = f"{out} (stowed to {stowed[-1][0]})"
-      if t.get("adopt"):
-        adopt(out, user_dir() / t["adopt"], args.dry_run)
       if "format" in t:
         text = FORMATS[t["format"]](pal, v)
+      elif t.get("archive"):
+        text = render_archive(template_path(t["template"], pal), ctx, t["template"])
       else:
         text = render(template_path(t["template"], pal).read_text(), ctx, t["template"])
-      mode = t.get("mode", "write")
-      if mode == "merge-ini":
-        changed = w.merge_ini(out, text)
-      elif mode == "ensure-lines":
-        changed = w.ensure_lines(out, text)
-      else:
-        changed = w.write(out, text)
-      if changed:
-        print(f"{'would write' if args.dry_run else 'wrote'} {shown}")
-      if t.get("reload") and (changed or args.force or switched) and v == variant:
-        reloads.append(t["reload"])
+      for out in outs:
+        shown = out
+        if df and t.get("dotfiles") and home_rel(out) is not None:
+          stowed.append((out, df / home_rel(out)))
+          out = df / home_rel(out)
+          shown = f"{out} (stowed to {stowed[-1][0]})"
+        if t.get("adopt"):
+          adopt(out, user_dir() / t["adopt"], args.dry_run)
+        mode = t.get("mode", "write")
+        if mode == "merge-ini":
+          changed = w.merge_ini(out, text)
+        elif mode == "ensure-lines":
+          changed = w.ensure_lines(out, text)
+        else:
+          changed = w.write(out, text)
+        if changed:
+          print(f"{'would write' if args.dry_run else 'wrote'} {shown}")
+        if t.get("reload") and (changed or args.force or switched) and v == variant:
+          reloads.append(t["reload"])
   linked = True
   if stowed:
     for home_path, df_path in stowed:
@@ -1282,7 +1329,7 @@ def cmd_show(args):
 
   groups = [["bg-deep", "bg-sunken", "bg", "surface", "surface-raised", "surface-hover", "surface-active", "line",
              "line-strong"], ["text-disabled", "text-faint", "text-subtle", "text-muted", "text", "text-bright"]]
-  groups += [[h, f"{h}-bright", f"{h}-dim", f"{h}-soft"] for h in HUES]
+  groups += [[h, f"{h}-bright", f"{h}-dim", f"{h}-mid", f"{h}-soft"] for h in HUES]
   groups.append([f"ansi-{i}" for i in range(8)])
   groups.append([f"ansi-{i}" for i in range(8, 16)])
   print(f"{pal['meta']['name']} {variant}")
@@ -1423,7 +1470,7 @@ THEME_HEADER = """# {name}: a Themer theme.
 #
 # Values: "#rrggbb", "oklch(L C H)" (L 0..1, C about 0..0.37, H degrees), or "{{other-token}}".
 # Anything left out falls back to defaults.toml: roles, syntax colors, terminal colors, fonts, shapes.
-# Each hue may also define -bright, -dim and -soft; leave them out and Themer derives them from the base hue.
+# Each hue may also define -bright, -dim, -mid and -soft; leave them out and Themer derives them from the base hue.
 """
 
 

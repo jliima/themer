@@ -228,6 +228,7 @@ Template syntax: `{{ token }}` gives `#rrggbb`; filters chain with `|`:
 | `alpha(0.5)` | `#5faff180` |
 | `mix(bg, 0.4)` | 40% of the way from accent to bg, in OKLab |
 | `lighten(0.05)`, `darken(0.05)` | OKLCH lightness shifted |
+| `pick(A, B)` | on a boolean token: `{{ is-dark \| pick(Darcula, Default) }}` gives `Darcula` in dark variants, else `Default` |
 | `oklch` | `oklch(0.730 0.125 246.0)` |
 
 Names available in templates besides the tokens: `theme` (`pare`), `name` (`Pare`), `variant` (`dark`), `Variant`
