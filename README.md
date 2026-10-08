@@ -156,7 +156,8 @@ makes running KDE apps pick up a variant change.
 `[overrides.<table>]` in `settings.toml` sets non-color values that win over every theme on this machine, with the
 same table and key names as a `theme.toml`, e.g. `[overrides.kde] decoration-library = "themer"`.
 
-Templates can also use `{{ dark-suffix }}` ("Dark" or nothing) and the filter `add(N or token)`.
+Templates can also use `{{ dark-suffix }}` ("Dark" or nothing), `{{ dark-bool }}` ("true" or "false") and the filter
+`add(N or token)`.
 
 ## Firefox snippets
 

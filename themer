@@ -362,7 +362,8 @@ def context(pal, variant):
   ctx.update({"variant": variant, "Variant": variant.capitalize(), "theme": meta["id"], "name": meta["name"],
               "scheme": f"{meta['name'].replace(' ', '')}{variant.capitalize()}",
               "is-dark": 1 if variant == "dark" else 0, "is-light": 0 if variant == "dark" else 1,
-              "dark-suffix": "Dark" if variant == "dark" else ""})
+              "dark-suffix": "Dark" if variant == "dark" else "",
+              "dark-bool": "true" if variant == "dark" else "false"})
   for section, values in pal.items():
     if isinstance(values, dict) and section not in VARIANTS and section not in ("roles", "meta", "_defaults"):
       for k, v in values.items():
