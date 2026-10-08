@@ -1,25 +1,25 @@
 <idea-plugin>
-  <id>com.github.jliima.pywal.reload</id>
-  <name>Pywal Theme Reloader</name>
+  <id>com.github.jliima.themer.reload</id>
+  <name>Themer Theme Reloader</name>
   <version>1.0.0</version>
   <vendor url="https://github.com/jliima">jliima</vendor>
 
   <description><![CDATA[
-    Listens for Themer (or pywal) palette updates and reloads the Pywal UI theme and editor
-    color scheme without requiring an IDE restart.
+    Reloads the Themer UI theme and editor scheme that `themer apply` rendered
+    without requiring an IDE restart.
 
     Exposes a local HTTP endpoint: POST http://localhost:9988/reload
-    Called by apply.sh, which Themer runs on every theme or variant change.
+    Called by apply.sh, which Themer runs when the JetBrains theme changes.
   ]]></description>
 
   <depends>com.intellij.modules.platform</depends>
 
   <extensions defaultExtensionNs="com.intellij">
-    <postStartupActivity implementation="com.github.jliima.pywal.reload.PywalReloadStartupActivity"/>
+    <postStartupActivity implementation="com.github.jliima.themer.reload.ThemerReloadStartupActivity"/>
   </extensions>
 
   <applicationListeners>
-    <listener class="com.github.jliima.pywal.reload.LafChangeListener"
+    <listener class="com.github.jliima.themer.reload.LafChangeListener"
               topic="com.intellij.ide.ui.LafManagerListener"/>
   </applicationListeners>
 </idea-plugin>

@@ -1,12 +1,12 @@
-package com.github.jliima.pywal.reload
+package com.github.jliima.themer.reload
 
 import com.intellij.openapi.diagnostic.thisLogger
 import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import java.util.concurrent.Executors
 
-object PywalReloadServer {
-    private const val PORT = 9988
+object ThemerReloadServer {
+    private val PORT = System.getenv("THEMER_RELOAD_PORT")?.toIntOrNull() ?: 9988
     private val log = thisLogger()
     private var server: HttpServer? = null
 
@@ -39,12 +39,12 @@ object PywalReloadServer {
                 exchange.responseBody.use { it.write(body) }
             }
             executor = Executors.newSingleThreadExecutor { r ->
-                Thread(r, "pywal-reload-server").also { it.isDaemon = true }
+                Thread(r, "themer-reload-server").also { it.isDaemon = true }
             }
             start()
         }
 
-        log.info("Pywal reload server started on port $PORT")
+        log.info("Themer reload server started on port $PORT")
     }
 
     fun stop() {

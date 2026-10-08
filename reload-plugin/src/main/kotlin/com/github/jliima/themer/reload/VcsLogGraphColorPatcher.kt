@@ -1,4 +1,4 @@
-package com.github.jliima.pywal.reload
+package com.github.jliima.themer.reload
 
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.application.ApplicationManager
@@ -11,7 +11,7 @@ import javax.swing.UIManager
 /**
  * Lets the theme pick the VCS log graph branch colors, which the IDE derives from branch name hashes.
  *
- * Theme keys `VersionControl.Log.Graph.color1..N` (see ui-mapping.json) form an ordered palette. Branches get
+ * Theme keys `VersionControl.Log.Graph.color1..N` (see the UI theme template in the dotfiles) form an ordered palette. Branches get
  * the next unused palette entry in the order the graph first paints them, so the topmost branches get the first
  * colors; the palette wraps around when it runs out. Without any such keys the IDE's own colors are used.
  *

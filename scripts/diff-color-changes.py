@@ -1,39 +1,42 @@
 #!/usr/bin/env python3
-"""Diff color values between the auto-generated and hand-edited ICLS files.
+"""Diff color values between the Themer-rendered ICLS and a hand-edited ICLS file.
 
-Builds the resolved ICLS from the template + colors.json, then compares
-every color value against an edited ICLS file to show what was changed.
+Compares the editor scheme Themer wrote into an IDE (colors/Themer.icls) against an edited file, option by option,
+and suggests the Themer expression for every new color: a token (`syntax-keyword`) or a derived color from the UI
+theme template's `colors` section (`red-dim | mix(red, 0.5)`).
 
 Usage:
-    python3 scripts/diff-color-changes.py <edited.icls> [colors.json]
+    python3 scripts/diff-color-changes.py <edited.icls> [applied.icls]
 
 Arguments:
-    edited.icls  Path to the hand-edited or IDE-exported ICLS file
-    colors.json  Palette (default: ~/.cache/themer/jetbrains.json, else ~/.cache/wal/colors.json)
+    edited.icls   Path to the hand-edited or IDE-exported ICLS file
+    applied.icls  What Themer rendered (default: the newest ~/.config/JetBrains/*/colors/Themer.icls)
+
+Environment:
+    THEMER_JETBRAINS_TEMPLATES  folder with themer.icls and plugin/theme/themer.theme.json
+                                (default ~/dotfiles/.config/themer/templates/jetbrains)
 
 Examples:
-    # Diff against a hand-edited file in the project
-    python3 scripts/diff-color-changes.py pywal_color_scheme_käsin_paranneltu.icls
-
-    # Diff against the currently installed scheme in IntelliJ
-    python3 scripts/diff-color-changes.py \\
-        ~/.config/JetBrains/IntelliJIdea2026.1/colors/pywal-color-scheme.icls
+    python3 scripts/diff-color-changes.py ~/Downloads/edited.icls
 """
+import json
+import os
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from palette import default_colors_path, load_palette
+TEMPLATES = Path(os.environ.get("THEMER_JETBRAINS_TEMPLATES",
+                                Path.home() / "dotfiles/.config/themer/templates/jetbrains"))
+TEMPLATE = TEMPLATES / "themer.icls"
+THEME_TEMPLATE = TEMPLATES / "plugin/theme/themer.theme.json"
+THEME_JSON = Path.home() / ".cache/themer/jetbrains/themer.theme.json"
 
-PROJECT_DIR = Path(__file__).parent.parent
-TEMPLATE = PROJECT_DIR / "pywal_color_scheme.icls"
-
-# Semantic variables are preferred over raw color names when suggesting
-# replacements. Higher priority = listed first.
+# Semantic expressions are preferred over raw hue steps when suggesting replacements. Higher priority = listed first.
 SEMANTIC_PREFIXES = [
-  "syntax", "background", "foreground", "surface", "overlay", "accent",
-  "highlight", "border", "text", "success", "warning", "error", "info",
+  "syntax-", "bg", "text", "surface", "accent", "line", "focus-ring", "selection", "link",
+  "success", "warning", "danger", "info",
 ]
 
 # ANSI colors for terminal output
@@ -46,32 +49,31 @@ DIM = "\033[2m"
 RESET = "\033[0m"
 
 
-def resolve_template(template_text: str, palette: dict[str, str]) -> str:
-  """Substitute {varName} placeholders with bare hex values."""
-  def replace(match: re.Match) -> str:
-    var_name = match.group(1)
-    value = palette.get(var_name)
-    if value is None:
-      print(f"Warning: unmapped variable '{{{var_name}}}'", file=sys.stderr)
-      return match.group(0)
-    return value
+TAG_RE = re.compile(r"\{\{\s*(.+?)\s*\}\}")
 
-  return re.sub(r'\{(\w+)\}', replace, template_text)
+
+def tag_expression(value: str) -> str | None:
+  """The Themer expression of a value that is one {{ ... }} tag, without the `| strip` that drops the #."""
+  m = re.fullmatch(r"\{\{\s*(.+?)\s*\}\}", value)
+  if not m:
+    return None
+  return re.sub(r"\s*\|\s*strip$", "", m.group(1))
 
 
 def extract_template_variables(xml_text: str) -> dict[str, str]:
-  """Extract the raw {varName} placeholder for each option path in the template."""
-  root = ET.fromstring(xml_text)
+  """Extract the raw Themer expression for each option path in the template."""
+  root = ET.fromstring(xml_text.replace("{{", "[[").replace("}}", "]]"))
   variables: dict[str, str] = {}
+
+  def expr(value: str) -> str | None:
+    return tag_expression(value.replace("[[", "{{").replace("]]", "}}"))
 
   colors_elem = root.find("colors")
   if colors_elem is not None:
     for opt in colors_elem.findall("option"):
-      name = opt.get("name", "")
-      value = opt.get("value", "")
-      m = re.fullmatch(r'\{(\w+)\}', value)
-      if m:
-        variables[f"colors/{name}"] = m.group(1)
+      e = expr(opt.get("value", ""))
+      if e:
+        variables[f"colors/{opt.get('name', '')}"] = e
 
   attrs_elem = root.find("attributes")
   if attrs_elem is not None:
@@ -85,13 +87,29 @@ def extract_template_variables(xml_text: str) -> dict[str, str]:
       if value_elem is None:
         continue
       for sub_opt in value_elem.findall("option"):
-        sub_name = sub_opt.get("name", "")
-        sub_value = sub_opt.get("value", "")
-        m = re.fullmatch(r'\{(\w+)\}', sub_value)
-        if m:
-          variables[f"attributes/{attr_name}/{sub_name}"] = m.group(1)
+        e = expr(sub_opt.get("value", ""))
+        if e:
+          variables[f"attributes/{attr_name}/{sub_opt.get('name', '')}"] = e
 
   return variables
+
+
+def load_candidates() -> dict[str, str]:
+  """Every Themer expression with a color: all tokens (`themer tokens`) plus the derived colors of the UI theme
+  template, evaluated from the rendered theme JSON. Values are bare hex."""
+  candidates: dict[str, str] = {}
+  tokens = subprocess.run(["themer", "tokens"], capture_output=True, text=True, check=True).stdout
+  for line in tokens.splitlines():
+    parts = line.split()
+    if len(parts) == 2 and parts[1].startswith("#"):
+      candidates[parts[0]] = parts[1].lstrip("#")
+  if THEME_TEMPLATE.exists() and THEME_JSON.exists():
+    rendered = json.loads(THEME_JSON.read_text())["colors"]
+    for name, raw in json.loads(re.sub(r"\{\{ dark-bool \}\}", "true", THEME_TEMPLATE.read_text()))["colors"].items():
+      e = tag_expression(raw)
+      if e and e not in candidates and name in rendered:
+        candidates[e] = rendered[name].lstrip("#")
+  return candidates
 
 
 def extract_color_options(xml_text: str) -> dict[str, str]:
@@ -141,28 +159,26 @@ def normalize_hex(value: str) -> str:
 
 
 def variable_sort_key(name: str) -> tuple[int, str]:
-  """Sort variables: semantic names first, then raw color names."""
+  """Sort expressions: semantic tokens first, then hue steps, then ANSI colors."""
   for i, prefix in enumerate(SEMANTIC_PREFIXES):
     if name.startswith(prefix):
       return (0, f"{i:03d}_{name}")
-  if re.fullmatch(r'(red|green|blue|yellow|cyan|magenta|black|white|grey)\d', name):
-    return (1, name)
-  if re.fullmatch(r'color\d+', name):
+  if name.startswith("ansi-"):
     return (2, name)
   return (1, name)
 
 
 def find_variables_for_value(palette: dict[str, str], hex_value: str) -> list[str]:
-  """Find palette variables matching a hex value, sorted by semantic relevance."""
+  """Find expressions matching a hex value, sorted by semantic relevance."""
   normalized = normalize_hex(hex_value)
   matches = [k for k, v in palette.items() if normalize_hex(v) == normalized]
   return sorted(matches, key=variable_sort_key)
 
 
 def format_candidates(variables: list[str]) -> str:
-  """Format candidate variables for display."""
+  """Format candidate expressions for display."""
   if not variables:
-    return f"{DIM}(no matching palette variable){RESET}"
+    return f"{DIM}(no matching Themer token){RESET}"
   # Bold the first (best) candidate
   parts = [f"{BOLD}{variables[0]}{RESET}"]
   if len(variables) > 1:
@@ -170,32 +186,29 @@ def format_candidates(variables: list[str]) -> str:
   return ", ".join(parts)
 
 
+def newest_applied() -> Path | None:
+  files = list((Path.home() / ".config/JetBrains").glob("*/colors/Themer.icls"))
+  return max(files, key=lambda f: f.stat().st_mtime) if files else None
+
+
 def main():
   if len(sys.argv) < 2:
-    print("Usage: python3 scripts/diff-color-changes.py <edited.icls> [colors.json]",
-          file=sys.stderr)
-    print("\nCompares the resolved template against an edited ICLS file.", file=sys.stderr)
-    print("See script header for examples.", file=sys.stderr)
+    print(__doc__, file=sys.stderr)
     sys.exit(1)
 
   edited_path = Path(sys.argv[1])
-  colors_path = Path(sys.argv[2]) if len(sys.argv) > 2 else default_colors_path()
+  applied_path = Path(sys.argv[2]) if len(sys.argv) > 2 else newest_applied()
 
-  for path, label in [(edited_path, "edited file"), (colors_path, "colors.json"),
-                       (TEMPLATE, "template")]:
-    if not path.exists():
+  for path, label in [(edited_path, "edited file"), (applied_path, "applied scheme (run themer apply)"),
+                      (TEMPLATE, "template")]:
+    if path is None or not path.exists():
       print(f"Error: {label} not found: {path}", file=sys.stderr)
       sys.exit(1)
 
-  palette = load_palette(colors_path, strip_hash=True)
-  template_text = TEMPLATE.read_text()
+  palette = load_candidates()
+  template_vars = extract_template_variables(TEMPLATE.read_text())
 
-  # Extract raw template variables before resolving
-  template_vars = extract_template_variables(template_text)
-
-  # Build resolved version and parse both
-  resolved_text = resolve_template(template_text, palette)
-  resolved_options = extract_color_options(resolved_text)
+  resolved_options = extract_color_options(applied_path.read_text())
   edited_options = extract_color_options(edited_path.read_text())
 
   all_keys = sorted(set(resolved_options.keys()) | set(edited_options.keys()))
@@ -238,7 +251,7 @@ def main():
 
         print(f"\n    {YELLOW}{display_key}{RESET}")
         if template_var:
-          print(f"      template:   {{{template_var}}} → {resolved_val}")
+          print(f"      template:   {{{{ {template_var} }}}} → {resolved_val}")
         else:
           print(f"      template:   {resolved_val} (literal)")
         print(f"      edited:     {normalize_hex(edited_val)}")
@@ -249,7 +262,7 @@ def main():
     print(f"{'─' * 100}")
     for key, val in only_in_template:
       template_var = template_vars.get(key)
-      var_info = f" ({{{template_var}}})" if template_var else ""
+      var_info = f" ({{{{ {template_var} }}}})" if template_var else ""
       print(f"  {RED}✕ {key}{RESET} = {val}{var_info}")
 
   if only_in_edited:

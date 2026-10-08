@@ -1,119 +1,90 @@
 # jetbrains-pywal-theme
 
-A dynamic theme for all JetBrains IDEs that follows the desktop palette from Themer (the Pare design system in
-[jliima/dotfiles](https://github.com/jliima/dotfiles)), or from [pywal](https://github.com/dylanaraps/pywal) /
-[pywal16](https://github.com/eylles/pywal16). Dark and light variants both work: the IDE switches with the palette.
+A dynamic theme for all JetBrains IDEs that follows the desktop theme from Themer (the Pare design system in
+[jliima/dotfiles](https://github.com/jliima/dotfiles)). Dark and light variants both work: the IDE switches with
+`themer mode toggle`.
 
 Covers both the **IDE UI** (chrome, tool windows, menus) and the **editor** (syntax highlighting, VCS colors, diff gutter).
 
-> This is a personal theme built around a specific palette. It is not published to the JetBrains Marketplace.
+> This is a personal theme built around Themer. It is not published to the JetBrains Marketplace. (The repo name is
+> from the pywal days, when this followed wal's palette.)
 
 ---
 
 ## How it works
 
-The theme is split into two parts:
+Everything that has colors is a Themer template in the dotfiles, `.config/themer/templates/jetbrains/`:
 
-1. **UI theme** — an IntelliJ Look and Feel plugin (`pywal-theme.jar`) built from a static mapping of UI keys to palette variables, combined with colors from pywal at apply-time.
-2. **Editor color scheme** — an ICLS file (`pywal-color-scheme.icls`) generated from a template with `{varName}` placeholders, substituted with colors from pywal at apply-time.
+| Template | What Themer writes |
+|---|---|
+| `themer.icls` | the editor scheme "Themer", `~/.config/JetBrains/<IDE>/colors/Themer.icls` for every installed IDE |
+| `plugin/` | a small theme plugin ("Themer", UI colors) zipped to `~/.local/share/JetBrains/<IDE>/themer/lib/themer-theme.jar` |
+| `plugin/theme/themer.theme.json` | the same UI theme as plain JSON, `~/.cache/themer/jetbrains/themer.theme.json` |
 
-A companion **live reload plugin** (`pywal-reload-plugin`) runs a local HTTP server inside the IDE, allowing the theme to update instantly without restarting.
+Colors are Themer tokens (`{{ syntax-keyword }}`, `{{ accent-soft }}`), so a new theme or variant restyles the IDEs
+without touching this repo. The three targets are in `.config/themer/targets.toml` (group `jetbrains`).
+
+This repo holds the part Themer cannot render: the **reload plugin**, a Kotlin plugin that runs a local HTTP server
+inside the IDE so a theme change shows up live, without a restart.
 
 ```
-themer apply ──► ~/.cache/themer/jetbrains.json ──apply.sh──► IDE (live reload via :9988/reload)
-     (pywal-format palette for the applied theme and variant)
+themer apply ──► colors/Themer.icls, themer-theme.jar, themer.theme.json ──apply.sh──► IDE (live reload via :9988/reload)
 ```
-
-Without Themer, `apply.sh` falls back to pywal's `~/.cache/wal/colors.json`. Whether the IDE theme is dark or light
-(UI `dark` flag, editor parent scheme Darcula or Default) follows the palette's background.
 
 ## Project structure
 
 ```
 jetbrains-pywal-theme/
-├── apply.sh                       # Builds and deploys everything, then triggers live reload
-├── pywal_color_scheme.icls        # Editor scheme template ({varName} placeholders)
-├── theme/
-│   └── ui-mapping.json            # Maps IntelliJ UI keys → palette variable names
-├── assets/
-│   └── META-INF/
-│       ├── plugin.xml             # Theme plugin metadata
-│       └── pluginIcon.svg
+├── apply.sh                       # Themer's reload step: installs the reload plugin, cleans up Pywal files, triggers reload
 ├── scripts/
-│   ├── palette.py                 # Palette path, loading, dark/light detection
-│   ├── build-icls.py              # Processes ICLS template with colors.json
-│   ├── build-theme-json.py        # Combines ui-mapping.json + colors.json → theme JSON
-│   └── generate-template.py      # Dev tool: regenerate ICLS template from a scheme
+│   └── diff-color-changes.py      # Diff a hand-edited .icls against what Themer rendered (see the update-color-scheme skill)
 └── reload-plugin/                 # Kotlin/Gradle IntelliJ plugin for live reload
     └── src/main/kotlin/.../
-        ├── PywalReloadStartupActivity.kt
-        ├── PywalReloadServer.kt   # HTTP server on localhost:9988
-        └── ThemeReloader.kt       # Applies theme/scheme in-process
+        ├── ThemerReloadStartupActivity.kt
+        ├── ThemerReloadServer.kt  # HTTP server on localhost:9988
+        ├── ThemeReloader.kt       # Applies the rendered theme/scheme in-process
+        ├── CopilotColorPatcher.kt
+        └── VcsLogGraphColorPatcher.kt
 ```
 
 ## Requirements
 
-- Themer (from the dotfiles) or [pywal16](https://github.com/eylles/pywal16)
-- Python 3.10+
-- JDK (for `jar` command)
+- Themer (from the dotfiles)
+- JDK (to build the reload plugin), `unzip` and `curl` (apply.sh)
 - A JetBrains IDE (tested: IntelliJ IDEA, PyCharm, WebStorm, Rider, DataGrip)
 - The live reload plugin requires IntelliJ 2026.1+ (`since-build=261`)
 
 ## Setup
 
-The repo must be at `~/JetBrainsProjects/jetbrains-pywal-theme/` (the reload plugin reads its templates from there).
+The repo must be at `~/JetBrainsProjects/jetbrains-pywal-theme/` (the "JetBrains UI theme" target runs `apply.sh` from there).
 
 1. Build the reload plugin once: `cd reload-plugin && ./gradlew buildPlugin`.
-2. With Themer, add a target to `~/.config/themer/targets.toml` (the dotfiles already have it):
+2. `themer apply --only jetbrains --force` (the dotfiles already have the targets). From then on `themer apply` and
+   `themer mode toggle` re-render and reload by themselves.
+3. Restart the IDEs once. Each IDE selects the Themer theme and scheme on its first start with the plugin (a marker
+   file `options/themer-theme-selected` in its config folder records it); after that Themer drives them.
 
-   ```toml
-   [[target]]
-   name = "JetBrains IDEs"
-   group = "jetbrains"
-   format = "pywal"
-   output = "~/.cache/themer/jetbrains.json"
-   reload = "~/JetBrainsProjects/jetbrains-pywal-theme/apply.sh"
-   ```
-
-   `themer apply` (or `themer mode toggle`) then writes the palette and runs `apply.sh` whenever it changes.
-   `themer apply --only jetbrains --force` re-runs it by hand. With plain pywal, run `./apply.sh` after `wal`.
-
-`apply.sh [colors.json]`:
-1. Processes the ICLS template and deploys it to all IDE `colors/` directories
-2. Builds the theme JSON, packages `pywal-theme.jar` and deploys it to all IDEs
-3. Deploys the reload plugin JAR to all IDEs
-4. Triggers live reload via `POST localhost:9988/reload`
+`apply.sh` installs the reload plugin jar into every IDE, removes the old `pywal*` files and calls
+`POST localhost:9988/reload`. It is idempotent.
 
 ## Customizing the theme
 
 ### Editor colors
-Edit `pywal_color_scheme.icls`. Variables like `{syntaxKeyword}`, `{blue5}`, `{green3}` etc. are
-substituted with actual hex values at apply-time. See `~/.cache/themer/jetbrains.json` for the available
-variables.
+Edit `themer.icls` in the dotfiles. Colors are Themer expressions: a token (`{{ syntax-keyword | strip }}`, the
+`strip` drops the `#` the ICLS format does not want) or a filter chain (`{{ red-dim | mix(red, 0.5) | strip }}`).
+`themer tokens` lists them. To pull colors you tuned in the IDE back into the template, use the
+`update-color-scheme` skill (`scripts/diff-color-changes.py`).
 
 ### UI colors
-Edit `theme/ui-mapping.json`. This file maps IntelliJ UI key paths to palette variable names.
-You do **not** need to re-apply, just trigger a reload:
+Edit `plugin/theme/themer.theme.json` in the dotfiles. Its `colors` section names the Themer colors the `ui` section
+uses; the `ui` section maps IntelliJ UI key paths to those names. Then `themer apply --only jetbrains --force`.
 
-```bash
-curl -X POST http://localhost:9988/reload
-```
+## Colors
 
-Changes take effect immediately in any running IDE with the reload plugin installed.
-
-## Color palette
-
-The palette is Themer's pywal export (`themer/themer`, `fmt_pywal`), which keeps the keys of the old
-`parecolors.json`:
-
-- Semantic variables: `background`, `foreground`, `accent`, `surface`, `selection`, …
-- Syntax variables: `syntaxKeyword`, `syntaxString`, `syntaxType`, `syntaxComment`, …
-- Palette ramps for `red green blue yellow cyan magenta orange violet grey black white`, levels 1 to 5
-
-Ramps are relative to the background in both variants: level 1 is a faint tint, level 5 the full hue.
-The brightest (`5`) ramp levels are used for VCS status colors and project avatars.
-The faintest (`1`/`2`) levels are used for background tints (file colors, diff backgrounds).
-VCS log graph branches get the eight hues at level 5, then level 4.
+Prefer semantic tokens (`bg`, `text`, `accent`, `line`, `syntax-*`). Hue steps are `<hue>-soft` (faint tint),
+`<hue>-mid`, `<hue>-dim` and the hue itself; `<hue>-mix` in the theme template is dim mixed halfway to the hue.
+The full hues are used for VCS status colors and project avatars, the faint steps for background tints (file colors,
+diff backgrounds). VCS log graph branches get the eight hues, then their `-mix` steps.
 
 ## Live reload
 
@@ -123,10 +94,9 @@ The reload plugin exposes:
 POST http://localhost:9988/reload
 ```
 
-It reads `~/.cache/themer/jetbrains.json` (else `~/.cache/wal/colors.json`) and the project template files at runtime,
-builds the theme in-memory, and applies it via IntelliJ's internal APIs — no restart needed.
-
-If no IDE is running, the script skips the reload silently; the new theme will apply on next IDE start.
+It reads `~/.cache/themer/jetbrains/themer.theme.json` and the IDE's own `colors/Themer.icls`, both rendered by
+Themer, and applies them via IntelliJ's internal APIs. No restart needed. If no IDE is running, the script skips the
+reload silently; the new theme applies on the next IDE start.
 
 ## License
 

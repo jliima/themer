@@ -1,1 +1,1 @@
-rootProject.name = "pywal-reload-plugin"
+rootProject.name = "themer-reload-plugin"

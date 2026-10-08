@@ -1,4 +1,4 @@
-package com.github.jliima.pywal.reload
+package com.github.jliima.themer.reload
 
 import com.intellij.ide.ui.LafManager
 import com.intellij.ide.ui.LafManagerListener

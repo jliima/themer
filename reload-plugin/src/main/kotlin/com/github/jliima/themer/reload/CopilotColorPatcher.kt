@@ -1,4 +1,4 @@
-package com.github.jliima.pywal.reload
+package com.github.jliima.themer.reload
 
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.diagnostic.thisLogger
@@ -14,7 +14,7 @@ import javax.swing.UIManager
 /**
  * Lets the theme recolor the GitHub Copilot plugin, whose chat UI uses hardcoded colors instead of theme keys.
  *
- * Theme keys under `Copilot.Palette.*`, `Copilot.Style.*` and `Copilot.Chat.*` (see ui-mapping.json) are resolved
+ * Theme keys under `Copilot.Palette.*`, `Copilot.Style.*` and `Copilot.Chat.*` (see the UI theme template in the dotfiles) are resolved
  * to static color fields inside the Copilot plugin:
  *
  * - `Copilot.Palette.grey4`              -> `CopilotPalette.grey4`

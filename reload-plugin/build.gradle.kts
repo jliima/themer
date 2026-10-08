@@ -21,8 +21,8 @@ dependencies {
 
 intellijPlatform {
     pluginConfiguration {
-        id = "com.github.jliima.pywal.reload"
-        name = "Pywal Theme Reloader"
+        id = "com.github.jliima.themer.reload"
+        name = "Themer Theme Reloader"
         version = providers.gradleProperty("pluginVersion").get()
         ideaVersion {
             sinceBuild = "261"

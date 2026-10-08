@@ -1,60 +1,54 @@
-# JetBrains Pywal Theme
+# JetBrains Themer Theme
 
-Dynamic theme for all JetBrains IDEs, driven by Themer (dotfiles) or pywal: editor color scheme plus IDE UI,
-applied live without restart. Dark or light follows the palette's background.
+Dynamic theme for all JetBrains IDEs, driven by Themer (dotfiles): editor color scheme plus IDE UI,
+applied live without restart. Dark or light follows the Themer variant.
 
 ## Pipeline
 
 ```
-themer apply (dotfiles, "JetBrains IDEs" target in ~/.config/themer/targets.toml)
-  -> ~/.cache/themer/jetbrains.json         (pywal-format palette; fallback ~/.cache/wal/colors.json)
-  -> apply.sh
-       scripts/build-icls.py        pywal_color_scheme.icls -> ~/.config/JetBrains/<IDE>/colors/
-       scripts/build-theme-json.py  theme/ui-mapping.json   -> pywal-theme.jar in ~/.local/share/JetBrains/<IDE>/pywal/lib/
-       deploys reload-plugin jar, then POST localhost:9988/reload
+themer apply (dotfiles; targets in ~/.config/themer/targets.toml, templates in .config/themer/templates/jetbrains/)
+  -> ~/.config/JetBrains/<IDE>/colors/Themer.icls                (themer.icls)
+  -> ~/.local/share/JetBrains/<IDE>/themer/lib/themer-theme.jar  (plugin/, zipped by Themer: archive = true)
+  -> ~/.cache/themer/jetbrains/themer.theme.json                 (plugin/theme/themer.theme.json), then runs apply.sh
+       apply.sh: installs the reload plugin jar into each IDE, removes old pywal* files, POST localhost:9988/reload
 ```
 
-Apply after any change: `./apply.sh` (or `themer apply --only jetbrains --force`).
-Only UI/editor colors live reload; changes to `reload-plugin/` need `./gradlew buildPlugin` in
-`reload-plugin/`, `./apply.sh`, and an IDE restart.
+Apply after any change: `themer apply --only jetbrains --force`.
+Only UI/editor colors live reload; changes to `reload-plugin/` need `./gradlew buildPlugin` in `reload-plugin/`,
+`./apply.sh`, and an IDE restart. Gradle works with `--offline`.
 
-`scripts/palette.py` (and `buildPalette` in `ThemeReloader.kt`) add two derived names: `parentScheme` (Darcula or
-Default, used as the ICLS `parent_scheme`) and `isDark` (the UI theme's `dark` flag). Keep them in sync.
+All colors are Themer tokens rendered by Themer; nothing here computes a color. The dark flag and the ICLS
+`parent_scheme` come from `{{ dark-bool }}` and `{{ is-dark | pick(Darcula, Default) }}`.
 
 ## Key files
 
 | File | Purpose |
 |---|---|
-| `pywal_color_scheme.icls` | Editor scheme template, `{varName}` placeholders (bare hex, no `#`, after build) |
-| `theme/ui-mapping.json` | IntelliJ UI keys -> palette variable names, plus theme metadata |
-| `assets/META-INF/` | Static plugin.xml / manifest / icon for the theme jar |
-| `reload-plugin/` | Kotlin plugin: HTTP reload server (`ThemeReloader.kt`) and Copilot color patching |
-| `scripts/diff-color-changes.py` | Diff an edited `.icls` against the template (see `update-color-scheme` skill) |
-| `scripts/generate-template.py` | One-time dev tool to regenerate the ICLS template |
+| `~/dotfiles/.config/themer/templates/jetbrains/themer.icls` | Editor scheme template, `{{ token | strip }}` values |
+| `.../jetbrains/plugin/theme/themer.theme.json` | UI theme: a `colors` section of Themer tokens, then the `ui` and `icons` maps |
+| `.../jetbrains/plugin/META-INF/` | plugin.xml / manifest / icon of the theme jar |
+| `reload-plugin/` | Kotlin plugin: HTTP reload server (`ThemeReloader.kt`) and Copilot/VCS log color patching |
+| `scripts/diff-color-changes.py` | Diff an edited `.icls` against the rendered one (see `update-color-scheme` skill) |
 
-The reload plugin reads this repo from the hardcoded path `~/JetBrainsProjects/jetbrains-pywal-theme/`.
+## Colors
 
-## Variables
+Names in the `ui` section are the keys of the theme template's `colors` section, which are Themer tokens
+(`bg`, `text`, `line`, `accent-soft`, `red-soft`, `red-mid`, `red-dim`, `red`, ...) or derived colors defined there
+(`<hue>-mix`, `text-mid`, `line-weak`, `line-mid`). `themer tokens` lists the tokens.
 
-All names come from the palette: semantic `special.*` keys (`background`, `surface`, `overlay`, `foreground`,
-`textMuted`, `accent`, `selection`, `border`, `syntax*`, ...), ramps
-`red|green|blue|yellow|cyan|magenta|orange|violet|grey|black|white` 1-5 (1 faintest tint of the background, 5 full
-hue; holds for light variants too), and `color0-15` (avoid). Check `~/.cache/themer/jetbrains.json` for values.
-
-- `ui-mapping.json` values are variable names, never hex. Nested objects join with `.`; numbers and booleans pass
-  through (e.g. `VersionControl.Log.Graph.saturation`).
-- Prefer semantic names over ramps; use ramps for VCS, diff, file colors.
+- `ui` values are color names, never hex. Nested objects join with `.`; numbers and booleans pass through (e.g.
+  `VersionControl.Log.Graph.saturation`).
+- Prefer semantic names over hue steps; use hue steps for VCS, diff, file colors.
 - VCS log graph branch colors: `VersionControl.Log.Graph.color1..N`, handed out in first-paint order by
-  `VcsLogGraphColorPatcher.kt` (the IDE hashes branch names otherwise). Themer's eight hues at level 5, then 4.
-- VCS file status: added `green5`, modified `blue5`, deleted `red5`, conflict `yellow5`, ignored `textDisabled`.
-- Background tints (diff lines, file colors, banners): ramp level 1-2 so text stays readable.
-- New variables come from Themer's pywal export (`fmt_pywal` in dotfiles `themer/themer`); only add universally
-  useful ones.
+  `VcsLogGraphColorPatcher.kt` (the IDE hashes branch names otherwise). Themer's eight hues, then their `-mix` steps.
+- VCS file status: added `green`, modified `blue`, deleted `red`, conflict `yellow`, ignored `text-disabled`.
+- Background tints (diff lines, file colors, banners): `-soft` or `-mid` steps so text stays readable.
+- A color Themer lacks is better added to Themer (`themer/themer`, a new filter or token) than computed here.
 
 ## GitHub Copilot plugin colors
 
 Copilot hardcodes most chat colors. `reload-plugin/.../CopilotColorPatcher.kt` maps `Copilot.*` keys in
-`ui-mapping.json` onto the plugin's static color fields at startup and on every Look and Feel change:
+the UI theme template onto the plugin's static color fields at startup and on every Look and Feel change:
 
 | Key | Target |
 |---|---|
