@@ -81,6 +81,7 @@
   html, body {
     background-color: var(--themer-bg) !important;
     color: var(--themer-text);
+    font-family: "{{ fonts.sans }}", sans-serif !important;
   }
 
   ::selection {
@@ -125,10 +126,67 @@
     background-color: var(--themer-bg) !important;
   }
 
+  /* Like the design system's Browser example: no wordmark, a 460px search field, 64px tiles. */
+  .logo-and-wordmark-wrapper, .logo-and-wordmark {
+    display: none !important;
+  }
+
+  body, .activity-stream {
+    font-family: "{{ fonts.sans }}", sans-serif !important;
+  }
+
+  .search-wrapper .search-inner-wrapper {
+    width: 460px !important;
+    max-width: 100% !important;
+    min-height: 40px !important;
+    height: 40px !important;
+  }
+
+  .search-handoff-button, .search-wrapper input, .search-inner-wrapper input {
+    background-color: var(--themer-bg-sunken) !important;
+    border: 1px solid var(--themer-line) !important;
+    border-radius: var(--themer-radius-md) !important;
+    color: var(--themer-text) !important;
+    box-shadow: none !important;
+    font-size: 14px !important;
+    height: 40px !important;
+    padding-inline-start: 40px !important;
+    background-size: 16px !important;
+    background-position: 14px center !important;
+  }
+
+  .search-handoff-button .fake-textbox, .search-wrapper input::placeholder {
+    color: var(--themer-text-subtle) !important;
+    font-size: 14px !important;
+  }
+
+  .search-handoff-button:is(:hover, :focus-visible), .search-wrapper input:focus,
+  .search-wrapper.fake-focus .search-handoff-button {
+    border-color: var(--themer-focus-ring) !important;
+    outline: 3px solid var(--themer-accent-soft) !important;
+  }
+
   /* Shortcut tiles */
-  .top-site-outer .tile, .top-site-outer .top-site-icon {
+  .top-sites-list {
+    gap: 18px 22px !important;
+  }
+
+  .top-site-outer {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 76px !important;
+  }
+
+  .top-site-outer .tile {
+    width: 64px !important;
+    height: 64px !important;
     background-color: var(--themer-surface) !important;
     border-radius: var(--themer-radius-md) !important;
+    box-shadow: none !important;
+  }
+
+  .top-site-outer .top-site-icon {
+    background-color: transparent !important;
     box-shadow: none !important;
   }
 
@@ -138,19 +196,20 @@
 
   .top-site-outer .title {
     color: var(--themer-text-muted) !important;
+    font-size: 11px !important;
+    padding-top: 8px !important;
   }
 
-  /* Search field */
-  .search-handoff-button, .search-wrapper input, .search-inner-wrapper input {
-    background-color: var(--themer-bg-sunken) !important;
-    border: 1px solid var(--themer-line) !important;
-    border-radius: var(--themer-radius-md) !important;
-    color: var(--themer-text) !important;
-    box-shadow: none !important;
+  .top-site-outer .title .sponsored-label {
+    color: var(--themer-text-subtle) !important;
+    font-size: 10px !important;
   }
+}
 
-  .search-handoff-button:is(:hover, :focus-visible), .search-wrapper input:focus {
-    border-color: var(--themer-focus-ring) !important;
+/* The blank page shown while a tab loads */
+@-moz-document url("about:blank") {
+  html {
+    background-color: var(--themer-bg) !important;
   }
 }
 
