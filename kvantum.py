@@ -319,7 +319,7 @@ def build(t, n):
 
   # Headers of item views: the view ground and a hairline under it, no lines between sections (like Pare's List).
   line_frames(svg, "header", 2, {s: t["line"] for s in STATES}, sides=("bottom",), states=STATES, width=1,
-              interior=None)
+              interior=t["bg"])
   empty(svg, "header-separator")
 
   # Scroll bars: a thin pill on no groove.
