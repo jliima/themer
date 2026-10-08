@@ -188,6 +188,32 @@ template = "firefox/user.js"
 output = "{firefox}/user.js"
 mode = "ensure-lines"
 
+# ---- JetBrains IDEs --------------------------------------------------------------------------------------------------
+
+# Every installed IDE version gets the editor scheme "Themer" and a small theme plugin ("Themer", UI colors). A
+# reload plugin (plugins/jetbrains, installed with its install.sh) restyles running IDEs live; jetbrains-themer-apply
+# installs it and calls it. Without it an IDE shows a change after a restart.
+[[target]]
+name = "JetBrains editor scheme"
+group = "jetbrains"
+template = "jetbrains/themer.icls"
+output = "~/.config/JetBrains/*20[0-9][0-9].[0-9]*/colors/Themer.icls"
+
+[[target]]
+name = "JetBrains UI theme plugin"
+group = "jetbrains"
+template = "jetbrains/plugin"
+archive = true
+output = "~/.local/share/JetBrains/*20[0-9][0-9].[0-9]*/themer/lib/themer-theme.jar"
+
+# The same UI theme as plain JSON, which the reload plugin loads into a running IDE.
+[[target]]
+name = "JetBrains UI theme"
+group = "jetbrains"
+template = "jetbrains/plugin/theme/themer.theme.json"
+output = "~/.cache/themer/jetbrains/themer.theme.json"
+reload = "PATH=$HOME/.local/bin:$PATH; command -v jetbrains-themer-apply >/dev/null && jetbrains-themer-apply"
+
 # ---- VS Code ---------------------------------------------------------------------------------------------------------
 
 # The dark and light theme ("Themer Dark" and "Themer Light") of the Themer extension (plugins/vscode/install.sh), which

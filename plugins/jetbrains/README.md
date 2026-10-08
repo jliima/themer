@@ -1,8 +1,7 @@
-# jetbrains-themer
+# Themer for JetBrains IDEs
 
-A dynamic theme for all JetBrains IDEs that follows the desktop theme from Themer (the Pare design system in
-[jliima/dotfiles](https://github.com/jliima/dotfiles)). Dark and light variants both work: the IDE switches with
-`themer mode toggle`.
+The JetBrains part of Themer: a dynamic theme for all JetBrains IDEs that follows the theme Themer applies. Dark and
+light variants both work: the IDE switches with `themer mode toggle`.
 
 Covers both the **IDE UI** (chrome, tool windows, menus) and the **editor** (syntax highlighting, VCS colors, diff gutter).
 
@@ -12,7 +11,8 @@ Covers both the **IDE UI** (chrome, tool windows, menus) and the **editor** (syn
 
 ## How it works
 
-Everything that has colors is a Themer template in the dotfiles, `.config/themer/templates/jetbrains/`:
+Everything that has colors is a Themer template, `~/.config/themer/templates/jetbrains/` (yours; Themer ships the
+targets, not the templates):
 
 | Template | What Themer writes |
 |---|---|
@@ -21,9 +21,9 @@ Everything that has colors is a Themer template in the dotfiles, `.config/themer
 | `plugin/theme/themer.theme.json` | the same UI theme as plain JSON, `~/.cache/themer/jetbrains/themer.theme.json` |
 
 Colors are Themer tokens (`{{ syntax-keyword }}`, `{{ accent-soft }}`), so a new theme or variant restyles the IDEs
-without touching this repo. The three targets are in `.config/themer/targets.toml` (group `jetbrains`).
+without touching this plugin. The three targets are in Themer's `targets.toml` (group `jetbrains`).
 
-This repo holds the part Themer cannot render: the **reload plugin**, a Kotlin plugin that runs a local HTTP server
+This folder holds the part Themer cannot render: the **reload plugin**, a Kotlin plugin that runs a local HTTP server
 inside the IDE so a theme change shows up live, without a restart.
 
 ```
@@ -33,7 +33,7 @@ themer apply ──► colors/Themer.icls, themer-theme.jar, themer.theme.json �
 ## Project structure
 
 ```
-jetbrains-themer/
+plugins/jetbrains/
 ├── install.sh                     # builds the reload plugin, links jetbrains-themer-apply onto PATH
 ├── apply.sh                       # Themer's reload step: installs the reload plugin, triggers reload
 ├── scripts/
@@ -49,19 +49,18 @@ jetbrains-themer/
 
 ## Requirements
 
-- [Themer](https://github.com/jliima/themer), with the JetBrains templates and targets from the dotfiles
-  ([jliima/dotfiles](https://github.com/jliima/dotfiles), `.config/themer/`) stowed
+- Themer (this repository), with the JetBrains templates in `~/.config/themer/templates/jetbrains/`
 - JDK (to build the reload plugin), `unzip` and `curl` (apply.sh)
 - A JetBrains IDE (tested: IntelliJ IDEA, PyCharm, WebStorm, Rider, DataGrip)
 - The live reload plugin requires IntelliJ 2026.1+ (`since-build=261`)
 
 ## Setup
 
-Clone the repo anywhere; nothing depends on where.
+Run it from the Themer clone, wherever that is; nothing depends on where.
 
 1. `./install.sh` builds the reload plugin, links `~/.local/bin/jetbrains-themer-apply` to `apply.sh` (the command
    the "JetBrains UI theme" target runs after rendering) and installs the plugin into every IDE.
-2. `themer apply --only jetbrains --force` (the dotfiles already have the targets). From then on `themer apply` and
+2. `themer apply --only jetbrains --force` (the targets ship with Themer). From then on `themer apply` and
    `themer mode toggle` re-render and reload by themselves.
 3. Restart the IDEs once. Each IDE selects the Themer theme and scheme on its first start with the plugin (a marker
    file `options/themer-theme-selected` in its config folder records it); after that Themer drives them.

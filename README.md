@@ -50,7 +50,9 @@ If your dotfiles already contain `.config/themer` (settings, themes, templates),
 `./install.sh --dotfiles <dotfiles>`; the dotfiles folder is found from where `~/.config/themer/settings.toml` is
 stowed from, so it can be cloned anywhere.
 
-For VS Code, run `plugins/vscode/install.sh` once (see [plugins/vscode/README.md](plugins/vscode/README.md)).
+Apps that need more than a rendered file have a plugin under `plugins/`; run its `install.sh` once:
+[VS Code](plugins/vscode/README.md) (reloads the window when a theme is re-rendered) and
+[JetBrains IDEs](plugins/jetbrains/README.md) (live reload of running IDEs).
 
 Restart Firefox and open Qt apps once after the first apply. Konsole uses the "Themer" profile in new windows; Kate
 switches to the "Themer Dark" or "Themer Light" syntax theme.
@@ -89,7 +91,7 @@ color schemes and profiles even before Themer runs there; `themer apply` then do
 | Command | What it does |
 | --- | --- |
 | `themer apply [--theme ID[:variant]] [--variant dark\|light]` | Render every target and reload Plasma, KWin and GTK. Without `--theme`, re-applies the current theme. |
-| `themer apply --only kde,konsole` | Only some groups: `kde`, `konsole`, `kate`, `gtk`, `firefox`, `vscode`, `exports`. |
+| `themer apply --only kde,konsole` | Only some groups: `kde`, `konsole`, `kate`, `gtk`, `firefox`, `vscode`, `jetbrains`, `exports`. |
 | `themer mode dark` / `light` / `toggle` | Switch the current theme's variant. Bind `themer mode toggle` to a shortcut in System Settings. |
 | `themer themes`, `themer current` | Installed themes and the applied one. |
 | `themer check --theme ID` | Text contrast report for every variant. Exits 1 if a pair fails. |
@@ -242,6 +244,7 @@ Exports refreshed on every apply, for scripts and apps without a template: `~/.c
 | Kate, KWrite | `Themer-Dark.theme`, `Themer-Light.theme`, `katerc` (merged) | Kate is switched to the Themer theme of the applied variant. |
 | GTK 4 | `~/.config/gtk-4.0/themer.css`, an import line in `gtk.css` | libadwaita accent, header bars, sidebars, cards. |
 | Firefox | `<profile>/chrome/themer-colors.css`, `userChrome.css`, `userContent.css`, lines in `user.js` | Enables userChrome loading, compact density, websites follow the variant. |
+| JetBrains IDEs | `~/.config/JetBrains/<IDE>/colors/Themer.icls`, `~/.local/share/JetBrains/<IDE>/themer/lib/themer-theme.jar` | Needs the plugin in [plugins/jetbrains/](plugins/jetbrains/README.md) to restyle running IDEs. |
 | VS Code | `~/.vscode/extensions/themer.themer-*/themes/themer-{dark,light}.json` | Needs the extension in [plugins/vscode/](plugins/vscode/README.md), which reloads the window when a theme is re-rendered. |
 
 Files marked dotfiles in the table above (color schemes, Konsole, Kate, GTK css) go through your dotfiles folder when

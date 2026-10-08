@@ -1,12 +1,12 @@
 # JetBrains Themer Theme
 
-Dynamic theme for all JetBrains IDEs, driven by Themer (dotfiles): editor color scheme plus IDE UI,
+Dynamic theme for all JetBrains IDEs, driven by Themer: editor color scheme plus IDE UI,
 applied live without restart. Dark or light follows the Themer variant.
 
 ## Pipeline
 
 ```
-themer apply (dotfiles; targets in ~/.config/themer/targets.toml, templates in .config/themer/templates/jetbrains/)
+themer apply (targets in Themer's targets.toml, templates in ~/.config/themer/templates/jetbrains/)
   -> ~/.config/JetBrains/<IDE>/colors/Themer.icls                (themer.icls)
   -> ~/.local/share/JetBrains/<IDE>/themer/lib/themer-theme.jar  (plugin/, zipped by Themer: archive = true)
   -> ~/.cache/themer/jetbrains/themer.theme.json                 (plugin/theme/themer.theme.json)
@@ -44,7 +44,7 @@ Names in the `ui` section are the keys of the theme template's `colors` section,
   `VcsLogGraphColorPatcher.kt` (the IDE hashes branch names otherwise). Themer's eight hues, then their `-mix` steps.
 - VCS file status: added `green`, modified `blue`, deleted `red`, conflict `yellow`, ignored `text-disabled`.
 - Background tints (diff lines, file colors, banners): `-soft` or `-mid` steps so text stays readable.
-- A color Themer lacks is better added to Themer (`themer/themer`, a new filter or token) than computed here.
+- A color Themer lacks is better added to Themer (the `themer` script in the repository root, a new filter or token) than computed here.
 
 ## GitHub Copilot plugin colors
 
