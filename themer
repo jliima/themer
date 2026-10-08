@@ -1544,10 +1544,13 @@ def watch_screens():
     timeout = max(0.0, min(due) - time.monotonic()) if due else None
     ready, _, _ = select.select([fd], [], [], timeout)
     if ready:
-      if not os.read(fd, 65536):
+      data = os.read(fd, 65536)
+      if not data:
         die("udevadm monitor stopped")
-      now = time.monotonic()
-      due = [now + 2, now + 10]
+      if b"(drm)" in data:
+        # An event line, not the header udevadm prints first.
+        now = time.monotonic()
+        due = [now + 2, now + 10]
       continue
     due.pop(0)
     _SETTINGS = None
