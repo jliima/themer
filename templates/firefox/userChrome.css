@@ -171,8 +171,12 @@
   accent-color: var(--themer-accent) !important;
 }
 
+/* UI text like Plasma's: the ui-weight, and no automatic optical size. Qt draws a variable font's named instances at
+   the default optical size, while Firefox would pick a small-size cut (SF Pro Text), which is heavier and wider. */
 #navigator-toolbox, menupopup, panel {
   font-family: var(--pare-font) !important;
+  font-weight: {{ fonts.ui-weight }} !important;
+  font-optical-sizing: none !important;
 }
 
 /* ---- Tab strip ---------------------------------------------------------------------------------------------------- */
@@ -431,6 +435,7 @@
 .urlbarView-row-inner {
   min-height: 32px !important;
   padding-block: 0 !important;
+  align-items: center !important;
   padding-inline: 10px !important;
   border-radius: var(--themer-radius-sm) !important;
   font-size: 13px;
