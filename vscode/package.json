@@ -1,0 +1,44 @@
+{
+  "name": "themer",
+  "displayName": "Themer",
+  "description": "Color themes rendered by Themer, reloaded when Themer re-renders them",
+  "version": "1.0.0",
+  "publisher": "jliima",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Themes",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "themes": [
+      {
+        "label": "Themer Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/themer-dark.json"
+      },
+      {
+        "label": "Themer Light",
+        "uiTheme": "vs",
+        "path": "./themes/themer-light.json"
+      }
+    ],
+    "configuration": {
+      "title": "Themer",
+      "properties": {
+        "themer.autoReload": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reload the window when Themer renders a changed theme, so it shows without a restart. When off, or while a debug session runs, a notification offers the reload instead."
+        }
+      }
+    }
+  }
+}
