@@ -6,7 +6,7 @@
 #   template  file under templates/, looked up in ~/.config/themer/templates, then the theme's own templates/
 #             folder, then templates/ next to this file (only the kde example is kept there). A target whose
 #             template is not found is skipped with a note.
-#   format    a built-in output: json, css, sh, pywal, pywal-sh, pywal-css
+#   format    a built-in output: json, css, sh
 #   output    destination; may use {{ tokens }} ({{ scheme }}, {{ variant }}, {{ theme }}) and {firefox}. A * ? or [..]
 #             in it is matched against the folders that exist (every installed IDE version); no match, no file.
 #   archive   true: template is a folder; every file in it is rendered and the output is a zip of them (a .jar too)
@@ -219,29 +219,3 @@ name = "Tokens as shell variables"
 group = "exports"
 format = "sh"
 output = "~/.cache/themer/colors.sh"
-
-[[target]]
-name = "pywal colors.json"
-group = "exports"
-format = "pywal"
-output = "~/.cache/wal/colors.json"
-
-[[target]]
-name = "pywal colors.sh"
-group = "exports"
-format = "pywal-sh"
-output = "~/.cache/wal/colors.sh"
-
-[[target]]
-name = "pywal colors.css"
-group = "exports"
-format = "pywal-css"
-output = "~/.cache/wal/colors.css"
-
-[[target]]
-name = "pywal theme files (wal --theme ~/.config/wal/colorschemes/dark/<theme>.json)"
-dotfiles = true
-group = "exports"
-format = "pywal"
-output = "~/.config/wal/colorschemes/{{ variant }}/{{ theme }}.json"
-variants = "all"

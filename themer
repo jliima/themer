@@ -534,98 +534,6 @@ def fmt_sh(pal, theme):
   return "\n".join(lines) + "\n"
 
 
-def fmt_pywal(pal, theme):
-  """pywal colors.json, with the extended keys of the original parecolors.json so old templates keep working."""
-  c = resolve(pal, theme)
-  dark = theme == "dark"
-
-  def ramp(hue):
-    return [c[f"{hue}-soft"], c[f"{hue}-mid"], c[f"{hue}-dim"], mix(c[f"{hue}-dim"], c[hue], 0.5), c[hue]]
-
-  sp = {"background": c["bg"], "foreground": c["text"], "cursor": c["text"]}
-  for i, k in enumerate(("bg-deep", "bg-sunken", "bg", "surface", "surface-raised")):
-    sp[f"black{i + 1}"] = c[k]
-  for i, v in enumerate((c["text-subtle"], c["text-muted"], mix(c["text-muted"], c["text"], 0.5), c["text"],
-                         c["text-bright"])):
-    sp[f"white{i + 1}"] = v
-  greys = (c["surface-hover"], c["surface-active"], oklch_to_hex(0.36 if dark else 0.82, 0.024, 248),
-           oklch_to_hex(0.44 if dark else 0.72, 0.026, 248), c["line-strong"])
-  for i, v in enumerate(greys):
-    sp[f"grey{i + 1}"] = v
-  for hue in ("red", "green", "blue", "yellow", "cyan", "magenta", "orange", "violet"):
-    for i, v in enumerate(ramp(hue)):
-      sp[f"{hue}{i + 1}"] = v
-  sem = {"backgroundAlt": "bg-sunken", "surface": "surface", "surfaceHover": "surface-hover",
-         "overlay": "surface-raised", "accent": "accent", "accentHover": "accent-hover", "accentSubtle": "accent-soft",
-         "textSecondary": "text-muted",
-         "textMuted": "text-subtle", "textDisabled": "text-disabled", "textInverse": "on-accent", "textLink": "link",
-         "border": "line", "borderSubtle": "surface-hover", "borderStrong": "line-strong", "borderFocus": "focus-ring",
-         "selection": "selection", "highlight": "surface-hover", "highlightActive": "surface-active",
-         "success": "success", "warning": "warning", "error": "danger", "info": "info"}
-  for k, v in sem.items():
-    sp[k] = c[v]
-  syn = {"Keyword": "keyword", "String": "string", "Comment": "comment", "Number": "number", "Function": "function",
-         "Class": "class", "Type": "type", "Constant": "constant", "Variable": "variable", "Operator": "operator",
-         "Annotation": "annotation", "DocTag": "doc-tag", "StringEscape": "escape", "Punctuation": "punctuation",
-         "Property": "property", "Tag": "tag", "Attribute": "attribute", "Heading": "heading", "Link": "link",
-         "Url": "url", "Regex": "regex"}
-  for k, v in syn.items():
-    sp["syntax" + k] = c["syntax-" + v]
-  langs = {"Java": ["Keyword", "Annotation", "String", "StringEscape", "Comment", "DocTag", "Number", "Constant",
-                    "Function", "Class", "Type", "Variable", "Operator", "Punctuation", "Property"],
-           "Python": ["Keyword", "String", "Comment", "Number", "Function", "Class", "Operator", "Punctuation",
-                      "Property"],
-           "Shell": ["Keyword", "String", "Comment", "Number", "Function", "Operator", "Punctuation"],
-           "Js": ["Keyword", "String", "Regex", "Comment", "DocTag", "Number", "Constant", "Function", "Class", "Type",
-                  "Property", "Operator", "Punctuation"],
-           "Json": ["String", "Number", "Constant", "Punctuation"],
-           "Css": ["Function", "Comment", "Number", "Punctuation"],
-           "Xml": ["Comment"],
-           "Markdown": ["Heading", "Link", "Url"]}
-  for lang, keys in langs.items():
-    for k in keys:
-      sp[f"syntax{lang}{k}"] = sp["syntax" + k]
-  extra = {"syntaxJavaModifier": "keyword", "syntaxJavaStaticFinal": "constant", "syntaxJavaThisSuper": "keyword",
-           "syntaxJavaImportPackage": "type", "syntaxShellExternalCommand": "function",
-           "syntaxShellVariable": "property",
-           "syntaxShellCommandSubstitution": "string", "syntaxPythonDecorator": "annotation",
-           "syntaxPythonBuiltin": "type", "syntaxPythonByteString": "string", "syntaxJsTemplateInterpolation": "escape",
-           "syntaxJsDecorator": "annotation", "syntaxJsonKey": "property", "syntaxCssSelector": "tag",
-           "syntaxCssPropertyName": "property", "syntaxCssPropertyValue": "variable",
-           "syntaxCssAttributeName": "attribute",
-           "syntaxCssHash": "constant", "syntaxCssImportant": "doc-tag", "syntaxCssPseudo": "annotation",
-           "syntaxCssUrl": "string", "syntaxCssColon": "punctuation", "syntaxCssAtRule": "keyword",
-           "syntaxCssCustomProperty": "property", "syntaxXmlTagName": "tag", "syntaxXmlTag": "punctuation",
-           "syntaxXmlAttributeName": "attribute", "syntaxXmlAttributeValue": "string",
-           "syntaxXmlEntityReference": "escape", "syntaxXmlCustomTagName": "type", "syntaxMarkdownCode": "string",
-           "syntaxMarkdownListMarker": "keyword", "syntaxMarkdownQuote": "comment",
-           "syntaxMarkdownFence": "punctuation", "syntaxMarkdownFenceLang": "annotation"}
-  for k, v in extra.items():
-    sp[k] = c["syntax-" + v]
-  sp["syntaxMarkdownBold"] = c["text-bright"]
-  sp["syntaxMarkdownItalic"] = c["text"]
-  out = {"wallpaper": pal["meta"].get("wallpaper", ""), "alpha": "100", "special": sp, "colors": {f"color{i}": c[f"ansi-{i}"] for i in range(16)}}
-  return json.dumps(out, indent=2) + "\n"
-
-
-def fmt_pywal_sh(pal, theme):
-  c = resolve(pal, theme)
-  lines = ["# Generated by Themer (pywal compatible).", "wallpaper=''", f"background='{c['bg']}'",
-           f"foreground='{c['text']}'", f"cursor='{c['text']}'"]
-  lines += [f"color{i}='{c[f'ansi-{i}']}'" for i in range(16)]
-  lines.append("export color0 color1 color2 color3 color4 color5 color6 color7 color8 color9 color10 color11 "
-               "color12 color13 color14 color15 background foreground cursor")
-  return "\n".join(lines) + "\n"
-
-
-def fmt_pywal_css(pal, theme):
-  c = resolve(pal, theme)
-  lines = ["/* Generated by Themer (pywal compatible). */", ":root {", "  --wallpaper: url(\"\");",
-           f"  --background: {c['bg']};", f"  --foreground: {c['text']};", f"  --cursor: {c['text']};"]
-  lines += [f"  --color{i}: {c[f'ansi-{i}']};" for i in range(16)]
-  return "\n".join(lines + ["}"]) + "\n"
-
-
 def fmt_kvantum_svg(pal, theme):
   sys.path.insert(0, str(Path(__file__).resolve().parent))
   import kvantum
@@ -635,8 +543,7 @@ def fmt_kvantum_svg(pal, theme):
   return kvantum.build(colors, numbers)
 
 
-FORMATS = {"kvantum-svg": fmt_kvantum_svg, "json": fmt_json, "css": fmt_css, "sh": fmt_sh, "pywal": fmt_pywal, "pywal-sh": fmt_pywal_sh,
-           "pywal-css": fmt_pywal_css}
+FORMATS = {"kvantum-svg": fmt_kvantum_svg, "json": fmt_json, "css": fmt_css, "sh": fmt_sh}
 
 
 # ---------------------------------------------------------------------------------------------------------------------

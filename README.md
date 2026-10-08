@@ -3,7 +3,7 @@
 Themer installs a design system into every app on the desktop. A theme is a small folder with a `theme.toml` that
 fills in a shared set of token names (grounds, text, eight hues, roles, syntax and terminal colors). Themer turns
 those tokens into Plasma color schemes, Darkly and window decoration settings, fonts, Konsole schemes and profile,
-Kate syntax themes, GTK 4 colors, Firefox `userChrome.css` / `userContent.css`, and pywal-compatible exports.
+Kate syntax themes, GTK 4 colors and Firefox `userChrome.css` / `userContent.css`.
 Any design system that uses the same token names works the same way.
 
 ```sh
@@ -63,14 +63,14 @@ With `[dotfiles]` on in `settings.toml`:
   `<dotfiles>/.config/themer/`. Commands that create them (`new`, `edit`, `set`, `install`, `import`) write there and
   run stow.
 - **Generated files Themer owns** are written into the dotfiles folder at their path relative to `~` and stowed:
-  Plasma color schemes, Konsole color schemes and the Themer profile, Kate syntax themes, `~/.config/gtk-4.0/themer.css`
-  and the pywal theme files. They are marked `dotfiles = true` in `targets.toml`. If an earlier run left a real file
+  Plasma color schemes, Konsole color schemes and the Themer profile, Kate syntax themes, `~/.config/gtk-4.0/themer.css`.
+  They are marked `dotfiles = true` in `targets.toml`. If an earlier run left a real file
   where the link should go, Themer backs it up and replaces it with the link.
 - **Merged config files** (`kdeglobals`, `kwinrc`, `katerc`, `darklyrc`, `konsolerc`, Firefox `user.js`, the
   `gtk.css` import line) are edited in place, keeping everything Themer does not set. If you stow one of them
   yourself, Themer writes through the link into your dotfiles copy.
 - **Machine-specific output** stays out of the repo: the Firefox profile's `chrome/` folder (its name differs on every
-  machine), `~/.cache/themer`, `~/.cache/wal`, and backups and state in `~/.local/state/themer`.
+  machine), `~/.cache/themer`, and backups and state in `~/.local/state/themer`.
 - `themer apply` runs stow when one of its files is not linked yet, then links by itself any of its own files stow
   skipped (for example when stow stops on an unrelated conflict elsewhere in your dotfiles) and tells you why.
   `themer stow` runs stow by hand. The command is `[dotfiles] stow` in settings.toml; set it to `""` to run stow
@@ -228,9 +228,7 @@ Names available in templates besides the tokens: `theme` (`my-theme`), `name` (`
 `konsole.margin`, `firefox.compact`. Numbers take `px`, `int` and `div(2)`.
 
 Exports refreshed on every apply, for scripts and apps without a template: `~/.cache/themer/colors.json`,
-`colors.css` (CSS variables `--themer-*`, every variant), `colors.sh` (`THEMER_ACCENT` and friends), and
-pywal-compatible `~/.cache/wal/colors.json`, `colors.sh`, `colors.css`. Existing pywal templates can render from
-the same palette with `wal --theme ~/.config/wal/colorschemes/dark/my-theme.json`.
+`colors.css` (CSS variables `--themer-*`, every variant) and `colors.sh` (`THEMER_ACCENT` and friends).
 
 ## What it writes
 
