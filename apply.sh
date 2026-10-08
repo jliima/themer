@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# The reload step of Themer's JetBrains targets (they run it when the theme or variant changed).
+# The reload step of Themer's JetBrains targets (they run it when the theme or variant changed). install.sh puts it
+# on PATH as jetbrains-themer-apply.
 #
-#   ./apply.sh
+#   jetbrains-themer-apply
 #
 # Themer has already written the editor scheme (colors/Themer.icls) and the UI theme plugin
 # (themer/lib/themer-theme.jar) into every installed IDE, and ~/.cache/themer/jetbrains/themer.theme.json for the live
@@ -9,7 +10,8 @@
 # Requires: unzip, curl. Build the reload plugin once: cd reload-plugin && ./gradlew buildPlugin
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve the link ~/.local/bin/jetbrains-themer-apply (made by install.sh) back to this clone.
+PROJECT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 CONFIG_DIR="$HOME/.config/JetBrains"
 SHARE_DIR="$HOME/.local/share/JetBrains"
 RELOAD_PLUGIN_ZIP="$PROJECT_DIR/reload-plugin/build/distributions/themer-reload-plugin-1.0.0.zip"
@@ -39,7 +41,7 @@ if [[ -f "$RELOAD_PLUGIN_ZIP" ]]; then
   echo "✓ Reload plugin installed or updated in $installed IDE share directories"
 else
   echo "⚠ Reload plugin not built, so running IDEs cannot reload live." >&2
-  echo "  Build it with: cd $PROJECT_DIR/reload-plugin && ./gradlew buildPlugin" >&2
+  echo "  Build it with: $PROJECT_DIR/install.sh" >&2
 fi
 
 # ── Live reload of running IDEs ──────────────────────────────────────────────

@@ -14,7 +14,7 @@ Arguments:
 
 Environment:
     THEMER_JETBRAINS_TEMPLATES  folder with themer.icls and plugin/theme/themer.theme.json
-                                (default ~/dotfiles/.config/themer/templates/jetbrains)
+                                (default ~/.config/themer/templates/jetbrains)
 
 Examples:
     python3 scripts/diff-color-changes.py ~/Downloads/edited.icls
@@ -28,7 +28,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 TEMPLATES = Path(os.environ.get("THEMER_JETBRAINS_TEMPLATES",
-                                Path.home() / "dotfiles/.config/themer/templates/jetbrains"))
+                                Path.home() / ".config/themer/templates/jetbrains"))
 TEMPLATE = TEMPLATES / "themer.icls"
 THEME_TEMPLATE = TEMPLATES / "plugin/theme/themer.theme.json"
 THEME_JSON = Path.home() / ".cache/themer/jetbrains/themer.theme.json"

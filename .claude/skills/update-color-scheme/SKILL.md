@@ -6,7 +6,7 @@ description: Apply a hand-edited or exported .icls file back into the Themer tem
 # Update Color Scheme Template
 
 Apply hand-edited ICLS color changes back into the Themer template
-`~/dotfiles/.config/themer/templates/jetbrains/themer.icls` (work in a dotfiles worktree if another agent is active).
+`~/.config/themer/templates/jetbrains/themer.icls` (work in a dotfiles worktree if another agent is active).
 
 You are given a path to an edited `.icls` file. Your job is to diff it against the
 template and apply every change using the right Themer expression.

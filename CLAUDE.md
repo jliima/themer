@@ -9,8 +9,9 @@ applied live without restart. Dark or light follows the Themer variant.
 themer apply (dotfiles; targets in ~/.config/themer/targets.toml, templates in .config/themer/templates/jetbrains/)
   -> ~/.config/JetBrains/<IDE>/colors/Themer.icls                (themer.icls)
   -> ~/.local/share/JetBrains/<IDE>/themer/lib/themer-theme.jar  (plugin/, zipped by Themer: archive = true)
-  -> ~/.cache/themer/jetbrains/themer.theme.json                 (plugin/theme/themer.theme.json), then runs apply.sh
-       apply.sh: installs the reload plugin jar into each IDE, POST localhost:9988/reload
+  -> ~/.cache/themer/jetbrains/themer.theme.json                 (plugin/theme/themer.theme.json)
+  -> jetbrains-themer-apply (apply.sh, linked onto PATH by install.sh): installs the reload plugin jar into each
+     IDE, POST localhost:9988/reload
 ```
 
 Apply after any change: `themer apply --only jetbrains --force`.
@@ -24,7 +25,7 @@ All colors are Themer tokens rendered by Themer; nothing here computes a color. 
 
 | File | Purpose |
 |---|---|
-| `~/dotfiles/.config/themer/templates/jetbrains/themer.icls` | Editor scheme template, `{{ token | strip }}` values |
+| `~/.config/themer/templates/jetbrains/themer.icls` | Editor scheme template, `{{ token | strip }}` values |
 | `.../jetbrains/plugin/theme/themer.theme.json` | UI theme: a `colors` section of Themer tokens, then the `ui` and `icons` maps |
 | `.../jetbrains/plugin/META-INF/` | plugin.xml / manifest / icon of the theme jar |
 | `reload-plugin/` | Kotlin plugin: HTTP reload server (`ThemeReloader.kt`) and Copilot/VCS log color patching |
