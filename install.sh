@@ -3,7 +3,10 @@
 #
 #   ./install.sh                      plain install: settings in ~/.config/themer, no stow
 #   ./install.sh --dotfiles ~/dots    your settings, themes and templates live in the GNU Stow package ~/dots
+#   ./install.sh --no-plugins         skip the plugins below
 #
+# It also installs the plugins in plugins/ for the apps it finds: VS Code (`code` on PATH) and the JetBrains IDEs
+# (a versioned folder in ~/.config/JetBrains). A plugin that fails to install is reported and does not stop the rest.
 # Themer ships no themes; install one with `themer install PATH` or keep them in <dotfiles>/.config/themer/themes.
 # The templates are yours too: only the example templates/kde is copied, and only if you have no templates/kde yet.
 # Safe to run again: existing files are kept. A previous plain install (a real ~/.config/themer folder) is moved into
@@ -13,11 +16,13 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mode="plain"
 dotfiles=""
+plugins="yes"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dotfiles) dotfiles="$(cd "${2/#\~/$HOME}" && pwd)"; mode="dotfiles"; shift 2 ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    --no-plugins) plugins="no"; shift ;;
+    -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
 done
@@ -82,9 +87,28 @@ link_command() {
   esac
 }
 
+# Installs the plugin of every app that is present. A failure is a warning: Themer itself is installed by now.
+install_plugins() {
+  [[ "$plugins" == "yes" ]] || return 0
+  local found=()
+  command -v code >/dev/null && found+=("VS Code:$here/plugins/vscode/install.sh")
+  compgen -G "${XDG_CONFIG_HOME:-$HOME/.config}/JetBrains/*20[0-9][0-9].[0-9]*" >/dev/null \
+    && found+=("JetBrains IDEs:$here/plugins/jetbrains/install.sh")
+  local entry
+  for entry in "${found[@]}"; do
+    say ""
+    say "Installing the ${entry%%:*} plugin..."
+    "${entry#*:}" || say "warning: the ${entry%%:*} plugin did not install; fix the error above and run ${entry#*:}"
+  done
+}
+
+# The plugin installers call themer, so make sure it is found even when ~/.local/bin is not on PATH yet.
+export PATH="$HOME/.local/bin:$PATH"
+
 if [[ "$mode" == "plain" ]]; then
   seed "${XDG_CONFIG_HOME:-$HOME/.config}/themer" false
   link_command
+  install_plugins
   say "Next: themer install <theme folder>, then themer doctor and themer apply --theme <id>"
   exit 0
 fi
@@ -114,6 +138,8 @@ link_command
 # Stow links ~/.config/themer (and every other file of the package) into ~.
 THEMER_SETTINGS="$conf/settings.toml" "$here/themer" stow \
   || die "stow reported conflicts; fix them and run: themer stow"
+
+install_plugins
 
 say ""
 say "Themes in $conf/themes: $(ls "$conf/themes" 2>/dev/null | tr '\n' ' ')"

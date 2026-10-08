@@ -28,17 +28,17 @@ command -v npx >/dev/null || { echo "install: npm is not installed: sudo apt ins
 
 version="$(node -p "require('$here/package.json').version")"
 vsix="$here/themer-$version.vsix"
+trap 'rm -f "$vsix"' EXIT
 (cd "$here" && npx --yes @vscode/vsce@3.2.1 package --allow-missing-repository -o "$vsix")
 
 code --install-extension "$vsix" --force
 for p in "${profiles[@]}"; do
   code --install-extension "$vsix" --force --profile "$p"
 done
-rm -f "$vsix"
 
 # Themer renders the themes into the installed extension (the "VS Code themes" target in targets.toml).
 if command -v themer >/dev/null; then
-  themer apply --only vscode --force
+  themer apply --only vscode --force || echo "No theme rendered yet; run 'themer apply --only vscode --force' later"
 else
   echo "themer is not installed; run 'themer apply --only vscode --force' once it is"
 fi

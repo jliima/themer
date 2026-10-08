@@ -28,13 +28,14 @@ git clone <this repository> ~/Git/themer
 cd ~/Git/themer
 ./install.sh                            # plain: settings in ~/.config/themer
 ./install.sh --dotfiles ~/dotfiles      # or: settings, themes and templates in a GNU Stow package; needs stow
+./install.sh --no-plugins               # either form, without the plugins below
 themer doctor                           # Darkly, fonts, Firefox profile, dotfiles, KDE tools
 themer install ./my-theme               # a folder with a theme.toml, if your dotfiles do not have one
 themer apply --theme my-theme --dry-run # every file it would write
 themer apply --theme my-theme
 ```
 
-`install.sh` is safe to run again. It does three things:
+`install.sh` is safe to run again. It does four things:
 
 1. Links `~/.local/bin/themer` to `themer` in the clone, so `git pull` there is all an update takes. Nothing is
    copied into your dotfiles; the tool itself never lives there.
@@ -45,14 +46,17 @@ themer apply --theme my-theme
    with a backup in `~/.local/state/themer`.
 3. With `--dotfiles`, runs `stow --no-folding --dir=<dotfiles> --target=~ .`, so `~/.config/themer` points into the
    dotfiles folder. This is the same as your own `stow .`; links that already exist are left alone.
+4. Installs the plugins of the apps it finds: VS Code (`code` on PATH) and the JetBrains IDEs (a versioned folder in
+   `~/.config/JetBrains`). A plugin that fails to install (no npm, no JDK) is reported and does not stop the rest;
+   `--no-plugins` skips them.
 
 If your dotfiles already contain `.config/themer` (settings, themes, templates), `stow .` first, then run
 `./install.sh --dotfiles <dotfiles>`; the dotfiles folder is found from where `~/.config/themer/settings.toml` is
 stowed from, so it can be cloned anywhere.
 
-Apps that need more than a rendered file have a plugin under `plugins/`; run its `install.sh` once:
-[VS Code](plugins/vscode/README.md) (reloads the window when a theme is re-rendered) and
-[JetBrains IDEs](plugins/jetbrains/README.md) (live reload of running IDEs).
+Apps that need more than a rendered file have a plugin under `plugins/`: [VS Code](plugins/vscode/README.md) (reloads
+the window when a theme is re-rendered) and [JetBrains IDEs](plugins/jetbrains/README.md) (live reload of running
+IDEs). `install.sh` sets them up; run a plugin's own `install.sh` to rebuild it after a `git pull`.
 
 Restart Firefox and open Qt apps once after the first apply. Konsole uses the "Themer" profile in new windows; Kate
 switches to the "Themer Dark" or "Themer Light" syntax theme.

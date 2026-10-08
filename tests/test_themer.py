@@ -61,7 +61,7 @@ class Commands(unittest.TestCase):
     return subprocess.run([str(c) for c in cmd], env=self.env, capture_output=True, text=True, cwd=self.tmp.name)
 
   def install(self, *args):
-    res = self.run_cmd(ROOT / "install.sh", *args)
+    res = self.run_cmd(ROOT / "install.sh", "--no-plugins", *args)
     self.assertEqual(res.returncode, 0, res.stderr)
     return res
 
@@ -83,6 +83,20 @@ class Commands(unittest.TestCase):
     self.assertEqual(res.returncode, 0, res.stderr)
     self.assertIn("would write", res.stdout)
     self.assertIn("skipped GTK 4 and libadwaita colors (no template gtk/themer.css", res.stdout)
+
+  def test_plugins_are_installed_for_the_apps_found_and_a_failure_is_only_a_warning(self):
+    stubs = Path(self.tmp.name) / "bin"
+    stubs.mkdir()
+    (stubs / "code").write_text("#!/bin/sh\nexit 1\n")
+    (stubs / "code").chmod(0o755)
+    self.env["PATH"] = f"{stubs}:/usr/bin:/bin"
+    res = self.run_cmd(ROOT / "install.sh")
+    self.assertEqual(res.returncode, 0, res.stderr)
+    self.assertIn("Installing the VS Code plugin", res.stdout)
+    self.assertIn("plugin did not install", res.stdout)
+    self.assertNotIn("JetBrains", res.stdout)
+    skipped = self.run_cmd(ROOT / "install.sh", "--no-plugins")
+    self.assertNotIn("Installing the", skipped.stdout)
 
   def test_apply_without_a_theme_explains_itself(self):
     self.install()
