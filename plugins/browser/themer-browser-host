@@ -9,8 +9,9 @@ Messages are JSON, each prefixed with its length as a native-endian uint32 (the 
 
 Extension -> host
   {"type": "hello", "app": "darkreader"}         start sending this app's theme
-  {"type": "hello", "app": "stylus", "styles": true}
-                                                 also sync the styles folder (see below)
+  {"type": "hello", "app": "stylus", "styles": true, "moves": true}
+                                                 also sync the styles folder (see below); "moves": the
+                                                 extension understands style-moved
   {"type": "style-write", "file": F, "code": C}  write a style the user saved in the browser
   {"type": "style-delete", "file": F}            the user deleted a style in the browser
   {"type": "log", "message": M}                  written to the host log (settings the extension ignored)
@@ -23,11 +24,14 @@ Host -> extension
   {"type": "styles-end"}                         full listing, sent after hello
   {"type": "style", ...} / {"type": "style-removed", "file": F}
                                                  a file changed or disappeared outside the browser
+  {"type": "style-moved", "from": F, "file": G}  a file was moved or renamed unchanged (only with "moves")
   {"type": "error", "message": M}
 
 The styles folder holds one UserCSS file (*.user.css) per style, so styles can be edited, versioned and shared outside
-the browser. It is [browser] stylus-styles in settings.toml; by default the stylus/ folder next to the real
-settings.toml (inside the dotfiles when they are stowed).
+the browser. Subfolders count too: a file name F is a path relative to the folder, like "vault/site.user.css". Hidden
+files and folders (".deleted", ".git", editor temp files) are skipped. The folder is [browser] stylus-styles in
+settings.toml; by default the stylus/ folder next to the real settings.toml (inside the dotfiles when they are
+stowed).
 
 Python 3.11+ standard library only. Errors are logged to ~/.local/state/themer/browser-host.log; stdout is the
 message channel and must carry nothing else.
@@ -63,6 +67,7 @@ IN_CREATE = 0x100
 IN_DELETE = 0x200
 IN_DELETE_SELF = 0x400
 IN_MOVE_SELF = 0x800
+IN_IGNORED = 0x8000
 IN_NONBLOCK = 0o4000
 IN_CLOEXEC = 0o2000000
 WATCH_MASK = IN_CLOSE_WRITE | IN_MOVED_FROM | IN_MOVED_TO | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MOVE_SELF
@@ -132,6 +137,12 @@ class Inotify:
     self.paths[wd] = path
     return True
 
+  def unwatch(self, path):
+    for wd, p in list(self.paths.items()):
+      if p == path:
+        self.libc.inotify_rm_watch(self.fd, wd)
+        del self.paths[wd]
+
   def read(self):
     """(folder, name, mask) for every pending event."""
     events = []
@@ -145,7 +156,7 @@ class Inotify:
       name = data[i + 16:i + 16 + size].rstrip(b"\0").decode(errors="replace")
       i += 16 + size
       folder = self.paths.get(wd)
-      if mask & (IN_DELETE_SELF | IN_MOVE_SELF):
+      if mask & (IN_DELETE_SELF | IN_MOVE_SELF | IN_IGNORED):
         self.paths.pop(wd, None)
       if folder is not None:
         events.append((folder, name, mask))
@@ -187,10 +198,27 @@ def styles_dir():
 
 
 def style_path(folder, name):
-  """The file for a style name from the extension, or None when the name is not a plain *.user.css file name."""
-  if not isinstance(name, str) or "/" in name or name.startswith(".") or not name.endswith(STYLE_SUFFIX):
+  """The file for a style name from the extension, or None when the name is not a *.user.css path inside the folder
+  (relative, "/" separated, no hidden or empty parts)."""
+  if not isinstance(name, str) or not name.endswith(STYLE_SUFFIX) or "\\" in name or "\0" in name:
     return None
-  return folder / name
+  parts = name.split("/")
+  if any(not part or part.startswith(".") for part in parts):
+    return None
+  return folder.joinpath(*parts)
+
+
+def style_tree(folder):
+  """(folders, {name: path}) of the styles folder and its subfolders, hidden ones left out."""
+  folders, files = [], {}
+  for top, dirs, names in os.walk(folder):
+    dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+    folders.append(Path(top))
+    for name in names:
+      if name.endswith(STYLE_SUFFIX) and not name.startswith("."):
+        path = Path(top, name)
+        files[path.relative_to(folder).as_posix()] = path
+  return folders, files
 
 
 def digest(data):
@@ -201,6 +229,7 @@ class Host:
   def __init__(self):
     self.app = None
     self.styles = None
+    self.moves = False
     self.inotify = Inotify()
     self.sent_theme = None
     # file name -> digest of the content the browser has, so our own writes and unchanged files are not echoed back
@@ -212,7 +241,15 @@ class Host:
     self.inotify.watch(CACHE_DIR)
     self.inotify.watch(BROWSER_DIR)
     if self.styles:
-      self.inotify.watch(self.styles)
+      folders = set(style_tree(self.styles)[0]) if self.styles.is_dir() else set()
+      for path in list(self.inotify.paths.values()):
+        if path not in folders and self.in_styles(path):
+          self.inotify.unwatch(path)
+      for path in sorted(folders):
+        self.inotify.watch(path)
+
+  def in_styles(self, path):
+    return self.styles is not None and (path == self.styles or self.styles in path.parents)
 
   def theme(self, force=False):
     msg = {"type": "theme", "tokens": read_json(BROWSER_DIR / "tokens.json"),
@@ -222,20 +259,41 @@ class Host:
       self.sent_theme = key
       send(msg)
 
-  def send_style(self, name):
-    path = self.styles / name
-    try:
-      code = path.read_text()
-      mtime = int(path.stat().st_mtime * 1000)
-    except FileNotFoundError:
-      if self.known.pop(name, None) is not None:
-        send({"type": "style-removed", "file": name})
-      return
-    except (OSError, UnicodeDecodeError) as e:
-      send({"type": "error", "message": f"{path}: {e}"})
-      return
-    key = digest(code)
-    if self.known.get(name) != key:
+  def read_styles(self):
+    """{name: (code, mtime)} of every style file that can be read."""
+    styles = {}
+    for name, path in style_tree(self.styles)[1].items():
+      try:
+        styles[name] = path.read_text(), int(path.stat().st_mtime * 1000)
+      except FileNotFoundError:
+        pass
+      except (OSError, UnicodeDecodeError) as e:
+        send({"type": "error", "message": f"{path}: {e}"})
+        if name in self.known:
+          styles[name] = None  # unreadable for now, not gone
+    return styles
+
+  def sync_styles(self):
+    """Tells the extension what changed in the folder since it last heard."""
+    styles = self.read_styles()
+    changed = {name: (code, mtime, digest(code)) for name, entry in styles.items() if entry is not None
+               for code, mtime in [entry] if self.known.get(name) != digest(code)}
+    removed = [name for name in self.known if name not in styles]
+    if self.moves:
+      # A file moved or renamed as it is: the extension relinks its style instead of deleting and reinstalling it,
+      # which would lose the style's state (enabled, options, position).
+      for old in list(removed):
+        new = next((name for name, entry in changed.items() if name not in self.known and entry[2] == self.known[old]),
+                   None)
+        if new:
+          removed.remove(old)
+          del changed[new]
+          self.known[new] = self.known.pop(old)
+          send({"type": "style-moved", "from": old, "file": new})
+    for name in removed:
+      del self.known[name]
+      send({"type": "style-removed", "file": name})
+    for name, (code, mtime, key) in sorted(changed.items()):
       self.known[name] = key
       send({"type": "style", "file": name, "code": code, "mtime": mtime})
 
@@ -243,8 +301,7 @@ class Host:
     self.styles.mkdir(parents=True, exist_ok=True)
     self.known = {}
     send({"type": "styles-begin", "dir": str(self.styles)})
-    for path in sorted(self.styles.glob("*" + STYLE_SUFFIX)):
-      self.send_style(path.name)
+    self.sync_styles()
     send({"type": "styles-end"})
 
   def write_style(self, name, code):
@@ -252,8 +309,8 @@ class Host:
     if path is None or not isinstance(code, str):
       send({"type": "error", "message": f"refused to write style file {name!r}"})
       return
-    self.styles.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{name}.tmp")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.tmp")
     tmp.write_text(code)
     os.replace(tmp, path)
     self.known[name] = digest(code)
@@ -264,10 +321,10 @@ class Host:
       send({"type": "error", "message": f"refused to delete style file {name!r}"})
       return
     # Kept as a hidden backup rather than removed: a style deleted by mistake in the browser is easy to get back.
-    trash = self.styles / ".deleted"
-    trash.mkdir(exist_ok=True)
+    trash = self.styles / ".deleted" / name
     if path.exists():
-      os.replace(path, trash / name)
+      trash.parent.mkdir(parents=True, exist_ok=True)
+      os.replace(path, trash)
     self.known.pop(name, None)
 
   def on_message(self, msg):
@@ -279,6 +336,7 @@ class Host:
         return
       if msg.get("styles"):
         self.styles = styles_dir()
+        self.moves = bool(msg.get("moves"))
         self.list_styles()
       self.watch_all()
       self.theme(force=True)
@@ -293,9 +351,10 @@ class Host:
 
   def on_events(self, events):
     for folder, name, _mask in events:
-      if folder == self.styles:
-        if name.endswith(STYLE_SUFFIX) and not name.startswith("."):
-          self.pending.add(("style", name))
+      if self.in_styles(folder):
+        # A style file, or a subfolder created, moved or deleted: compare the whole tree in flush().
+        if not name.startswith(".") or not name:
+          self.pending.add(("styles", None))
       elif folder == CACHE_DIR and name == "browser":
         self.pending.add(("theme", None))
       elif folder == BROWSER_DIR and name in ("tokens.json", f"{self.app}.json"):
@@ -307,11 +366,11 @@ class Host:
     pending, self.pending, self.deadline = self.pending, set(), None
     # Folders created after the start (first apply, first style) are only watchable now.
     self.watch_all()
-    for kind, name in sorted(pending, key=lambda p: (p[0], p[1] or "")):
+    for kind, _name in sorted(pending, key=lambda p: p[0]):
       if kind == "theme":
         self.theme()
-      else:
-        self.send_style(name)
+      elif self.styles:
+        self.sync_styles()
 
   def run(self):
     stdin = sys.stdin.fileno()

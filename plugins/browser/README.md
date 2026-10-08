@@ -104,6 +104,9 @@ Every UserCSS style is mirrored to one `*.user.css` file:
   `==UserStyle==` header with `@name` and `@namespace`).
 - Deleting a file while the browser runs deletes its style. Deleting a style in the browser moves its file to
   `.deleted/` in the folder.
+- Subfolders work like the folder itself, at any depth. Moving or renaming a file (or a whole subfolder) keeps its
+  style as it was, enabled or not; a style made in the browser gets its file at the top. Hidden files and folders
+  (`.deleted`, `.git`, editor temp files) are left alone.
 - When the extension connects, files and styles are matched by file name, then by `@name` and `@namespace`; where
   both changed, the newer one wins. A style without a file is exported, also one whose file was deleted while the
   browser was closed.
@@ -119,6 +122,9 @@ versioned with them), or:
 [browser]
 stylus-styles = "~/somewhere/else"
 ```
+
+Styles you do not want in a public dotfiles repository can live in a git-ignored subfolder, for example `vault/` with
+`**/vault/` in `.gitignore`, synced between machines some other way (Syncthing).
 
 ## Troubleshooting
 
