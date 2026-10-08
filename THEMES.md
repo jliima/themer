@@ -16,7 +16,7 @@ description = "Warm greys, orange accent"
 version = "1.0.0"
 variants = ["dark", "light"]       # any of dark, light; one is fine
 default-variant = "dark"
-wallpaper = "~/Pictures/ember.png"  # optional; passed on in the pywal export, where run-pywal.py sets it
+wallpaper = "~/Pictures/ember.png"  # optional; passed on in the pywal export
 
 [fonts]                            # optional, see defaults.toml
 sans = "Inter"
