@@ -1,22 +1,25 @@
 # JetBrains Pywal Theme
 
-Dynamic pywal theme for all JetBrains IDEs: editor color scheme plus IDE UI, applied live without restart.
+Dynamic theme for all JetBrains IDEs, driven by Themer (dotfiles) or pywal: editor color scheme plus IDE UI,
+applied live without restart. Dark or light follows the palette's background.
 
 ## Pipeline
 
 ```
-~/dotfiles/.config/wal/colorschemes/dark/parecolors.json  (palette source)
-  -> wal -> ~/.cache/wal/colors.json                      (what all scripts read)
-  -> ~/dotfiles/scripts/pywal/applications/intellij.sh
+themer apply (dotfiles, "JetBrains IDEs" target in ~/.config/themer/targets.toml)
+  -> ~/.cache/themer/jetbrains.json         (pywal-format palette; fallback ~/.cache/wal/colors.json)
+  -> apply.sh
        scripts/build-icls.py        pywal_color_scheme.icls -> ~/.config/JetBrains/<IDE>/colors/
        scripts/build-theme-json.py  theme/ui-mapping.json   -> pywal-theme.jar in ~/.local/share/JetBrains/<IDE>/pywal/lib/
        deploys reload-plugin jar, then POST localhost:9988/reload
 ```
 
-Apply after any change: `bash ~/dotfiles/scripts/pywal/applications/intellij.sh`
-(or `python3 ~/dotfiles/scripts/pywal/run-pywal.py --theme parecolors --app intellij`).
+Apply after any change: `./apply.sh` (or `themer apply --only jetbrains --force`).
 Only UI/editor colors live reload; changes to `reload-plugin/` need `./gradlew buildPlugin` in
-`reload-plugin/`, the apply script, and an IDE restart.
+`reload-plugin/`, `./apply.sh`, and an IDE restart.
+
+`scripts/palette.py` (and `buildPalette` in `ThemeReloader.kt`) add two derived names: `parentScheme` (Darcula or
+Default, used as the ICLS `parent_scheme`) and `isDark` (the UI theme's `dark` flag). Keep them in sync.
 
 ## Key files
 
@@ -33,9 +36,10 @@ The reload plugin reads this repo from the hardcoded path `~/JetBrainsProjects/j
 
 ## Variables
 
-All names come from `colors.json`: semantic `special.*` keys (`background`, `surface`, `overlay`, `foreground`,
-`textMuted`, `accent`, `selection`, `border`, `syntax*`, ...), ramps `red|green|blue|yellow|cyan|magenta|grey|black|white`
-1-5 (1 darkest, 5 brightest), and `color0-15` (avoid). Check `~/.cache/wal/colors.json` for current values.
+All names come from the palette: semantic `special.*` keys (`background`, `surface`, `overlay`, `foreground`,
+`textMuted`, `accent`, `selection`, `border`, `syntax*`, ...), ramps
+`red|green|blue|yellow|cyan|magenta|orange|violet|grey|black|white` 1-5 (1 faintest tint of the background, 5 full
+hue; holds for light variants too), and `color0-15` (avoid). Check `~/.cache/themer/jetbrains.json` for values.
 
 - `ui-mapping.json` values are variable names, never hex. Nested objects join with `.`; numbers and booleans pass
   through (e.g. `VersionControl.Log.Graph.saturation`).
@@ -44,7 +48,8 @@ All names come from `colors.json`: semantic `special.*` keys (`background`, `sur
   `VcsLogGraphColorPatcher.kt` (the IDE hashes branch names otherwise). Themer's eight hues at level 5, then 4.
 - VCS file status: added `green5`, modified `blue5`, deleted `red5`, conflict `yellow5`, ignored `textDisabled`.
 - Background tints (diff lines, file colors, banners): ramp level 1-2 so text stays readable.
-- New variables go into `parecolors.json` under `special`; only add universally useful ones.
+- New variables come from Themer's pywal export (`fmt_pywal` in dotfiles `themer/themer`); only add universally
+  useful ones.
 
 ## GitHub Copilot plugin colors
 

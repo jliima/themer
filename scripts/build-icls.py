@@ -2,39 +2,28 @@
 """Process pywal_color_scheme.icls template with colors from colors.json.
 
 Substitutes {varName} placeholders with bare hex values (no #) from the
-pywal colors.json palette. ICLS format requires hex without the # prefix.
+palette (see palette.py). ICLS format requires hex without the # prefix.
 
 Usage:
     python3 scripts/build-icls.py [colors.json] [template.icls] [output.icls]
 
 Defaults:
-    colors.json   = ~/.cache/wal/colors.json
+    colors.json   = ~/.cache/themer/jetbrains.json, else ~/.cache/wal/colors.json
     template      = <project>/pywal_color_scheme.icls
     output        = stdout
 """
-import json
 import re
 import sys
 from pathlib import Path
 
+from palette import default_colors_path, load_palette
+
 PROJECT_DIR = Path(__file__).parent.parent
-DEFAULT_COLORS  = Path.home() / ".cache/wal/colors.json"
 DEFAULT_TEMPLATE = PROJECT_DIR / "pywal_color_scheme.icls"
 
 
-def load_color_palette(colors_path: Path) -> dict[str, str]:
-    """Flatten colors.json into name → bare-hex (no #) for ICLS format."""
-    data = json.loads(colors_path.read_text())
-    palette: dict[str, str] = {}
-    for k, v in data.get("special", {}).items():
-        palette[k] = v.lstrip("#")
-    for k, v in data.get("colors", {}).items():
-        palette[k] = v.lstrip("#")
-    return palette
-
-
 def process_icls(colors_path: Path, template_path: Path) -> str:
-    palette = load_color_palette(colors_path)
+    palette = load_palette(colors_path, strip_hash=True)
     template = template_path.read_text()
 
     def replace(match: re.Match) -> str:
@@ -49,7 +38,7 @@ def process_icls(colors_path: Path, template_path: Path) -> str:
 
 
 def main():
-    colors_path   = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_COLORS
+    colors_path   = Path(sys.argv[1]) if len(sys.argv) > 1 else default_colors_path()
     template_path = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_TEMPLATE
     output_path   = Path(sys.argv[3]) if len(sys.argv) > 3 else None
 

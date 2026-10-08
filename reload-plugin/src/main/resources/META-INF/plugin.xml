@@ -5,11 +5,11 @@
   <vendor url="https://github.com/jliima">jliima</vendor>
 
   <description><![CDATA[
-    Listens for pywal theme updates and reloads the Pywal UI theme and editor
+    Listens for Themer (or pywal) palette updates and reloads the Pywal UI theme and editor
     color scheme without requiring an IDE restart.
 
     Exposes a local HTTP endpoint: POST http://localhost:9988/reload
-    Called automatically by the pywal intellij application script.
+    Called by apply.sh, which Themer runs on every theme or variant change.
   ]]></description>
 
   <depends>com.intellij.modules.platform</depends>

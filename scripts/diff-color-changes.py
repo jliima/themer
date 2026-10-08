@@ -9,7 +9,7 @@ Usage:
 
 Arguments:
     edited.icls  Path to the hand-edited or IDE-exported ICLS file
-    colors.json  Path to pywal colors.json (default: ~/.cache/wal/colors.json)
+    colors.json  Palette (default: ~/.cache/themer/jetbrains.json, else ~/.cache/wal/colors.json)
 
 Examples:
     # Diff against a hand-edited file in the project
@@ -19,14 +19,14 @@ Examples:
     python3 scripts/diff-color-changes.py \\
         ~/.config/JetBrains/IntelliJIdea2026.1/colors/pywal-color-scheme.icls
 """
-import json
 import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from palette import default_colors_path, load_palette
+
 PROJECT_DIR = Path(__file__).parent.parent
-DEFAULT_COLORS = Path.home() / ".cache/wal/colors.json"
 TEMPLATE = PROJECT_DIR / "pywal_color_scheme.icls"
 
 # Semantic variables are preferred over raw color names when suggesting
@@ -44,17 +44,6 @@ CYAN = "\033[36m"
 BOLD = "\033[1m"
 DIM = "\033[2m"
 RESET = "\033[0m"
-
-
-def load_color_palette(colors_path: Path) -> dict[str, str]:
-  """Flatten colors.json into name → bare-hex (no #) for ICLS format."""
-  data = json.loads(colors_path.read_text())
-  palette: dict[str, str] = {}
-  for k, v in data.get("special", {}).items():
-    palette[k] = v.lstrip("#")
-  for k, v in data.get("colors", {}).items():
-    palette[k] = v.lstrip("#")
-  return palette
 
 
 def resolve_template(template_text: str, palette: dict[str, str]) -> str:
@@ -190,7 +179,7 @@ def main():
     sys.exit(1)
 
   edited_path = Path(sys.argv[1])
-  colors_path = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_COLORS
+  colors_path = Path(sys.argv[2]) if len(sys.argv) > 2 else default_colors_path()
 
   for path, label in [(edited_path, "edited file"), (colors_path, "colors.json"),
                        (TEMPLATE, "template")]:
@@ -198,7 +187,7 @@ def main():
       print(f"Error: {label} not found: {path}", file=sys.stderr)
       sys.exit(1)
 
-  palette = load_color_palette(colors_path)
+  palette = load_palette(colors_path, strip_hash=True)
   template_text = TEMPLATE.read_text()
 
   # Extract raw template variables before resolving

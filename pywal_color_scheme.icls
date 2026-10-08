@@ -1,4 +1,4 @@
-<scheme name="pywal-color-scheme" version="142" parent_scheme="Darcula">
+<scheme name="pywal-color-scheme" version="142" parent_scheme="{parentScheme}">
   <metaInfo>
     <property name="ide">idea</property>
     <property name="ideVersion">2026.1.0.0</property>

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Combine pywal colors.json + ui-mapping.json into a full IntelliJ theme JSON.
+"""Combine colors.json + ui-mapping.json into a full IntelliJ theme JSON.
+
+The theme's "dark" flag follows the palette's background (see palette.py), so a light Themer variant gives a
+light IDE.
 
 Usage:
     python3 scripts/build-theme-json.py [colors.json] [ui-mapping.json] [output.json]
 
 Defaults:
-    colors.json   = ~/.cache/wal/colors.json
+    colors.json   = ~/.cache/themer/jetbrains.json, else ~/.cache/wal/colors.json
     ui-mapping    = <project>/theme/ui-mapping.json
     output        = stdout
 """
@@ -13,35 +16,23 @@ import json
 import sys
 from pathlib import Path
 
+from palette import default_colors_path, load_palette
+
 PROJECT_DIR = Path(__file__).parent.parent
-DEFAULT_COLORS = Path.home() / ".cache/wal/colors.json"
 DEFAULT_MAPPING = PROJECT_DIR / "theme/ui-mapping.json"
 
 
-def load_color_palette(colors_path: Path) -> dict[str, str]:
-    """Flatten colors.json into a single name→hex dict."""
-    data = json.loads(colors_path.read_text())
-    palette: dict[str, str] = {}
-    # special.* (backgroundAlt, surface, accent, border, syntax*, etc.)
-    for k, v in data.get("special", {}).items():
-        palette[k] = v
-    # colors.color0-15 → color0-15
-    for k, v in data.get("colors", {}).items():
-        palette[k] = v
-    return palette
-
-
 def build_theme(colors_path: Path, mapping_path: Path) -> dict:
-    palette = load_color_palette(colors_path)
+    palette = load_palette(colors_path)
     mapping = json.loads(mapping_path.read_text())
 
     # Build the colors section from the full palette
-    colors_section = {k: v for k, v in palette.items()}
+    colors_section = {k: v for k, v in palette.items() if v.startswith("#")}
 
     return {
         "name":         mapping["name"],
         "author":       mapping.get("author", ""),
-        "dark":         mapping["dark"],
+        "dark":         palette["isDark"] == "true",
         "editorScheme": mapping["editorScheme"],
         "colors":       colors_section,
         "ui":           mapping["ui"],
@@ -50,7 +41,7 @@ def build_theme(colors_path: Path, mapping_path: Path) -> dict:
 
 
 def main():
-    colors_path  = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_COLORS
+    colors_path  = Path(sys.argv[1]) if len(sys.argv) > 1 else default_colors_path()
     mapping_path = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_MAPPING
     output_path  = Path(sys.argv[3]) if len(sys.argv) > 3 else None
 

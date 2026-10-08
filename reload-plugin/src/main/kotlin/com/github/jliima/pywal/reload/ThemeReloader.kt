@@ -29,6 +29,12 @@ object ThemeReloader {
         "JetBrainsProjects/jetbrains-pywal-theme/pywal_color_scheme.icls"
     )
 
+    // Palette: Themer's export for the applied theme and variant, else pywal's colors.json
+    private val themerColors = File(System.getProperty("user.home"), ".cache/themer/jetbrains.json")
+    private val walColors = File(System.getProperty("user.home"), ".cache/wal/colors.json")
+
+    private fun colorsFile(): File = if (themerColors.exists()) themerColors else walColors
+
     fun reload(): Result<String> = runCatching {
         val messages = mutableListOf<String>()
         ApplicationManager.getApplication().invokeAndWait {
@@ -39,7 +45,7 @@ object ThemeReloader {
     }
 
     private fun reloadUiTheme(): String? {
-        val colorsFile = File(System.getProperty("user.home"), ".cache/wal/colors.json")
+        val colorsFile = colorsFile()
         if (!colorsFile.exists()) {
             log.warn("colors.json not found: $colorsFile")
             return "colors.json missing"
@@ -62,7 +68,7 @@ object ThemeReloader {
     }
 
     private fun reloadEditorScheme(): String? {
-        val colorsFile = File(System.getProperty("user.home"), ".cache/wal/colors.json")
+        val colorsFile = colorsFile()
         if (!colorsFile.exists()) {
             log.warn("colors.json not found: $colorsFile")
             return "colors.json missing"
@@ -87,7 +93,7 @@ object ThemeReloader {
 
         // Load and apply the scheme
         val colorsManager = EditorColorsManager.getInstance()
-        val parentScheme = colorsManager.getScheme("Darcula")
+        val parentScheme = colorsManager.getScheme(palette.getValue("parentScheme"))
             ?: colorsManager.allSchemes.firstOrNull()
             ?: return "no parent scheme available"
         val scheme = EditorColorsSchemeImpl(parentScheme)
@@ -112,7 +118,21 @@ object ThemeReloader {
         root.get("colors")?.fields()?.forEach { (k, v) ->
             palette[k] = if (stripHash) v.asText().removePrefix("#") else v.asText()
         }
+        // Same derived names as scripts/palette.py: the template's parent scheme and the UI theme's dark flag
+        val dark = isDark(palette["background"] ?: "000000")
+        palette["parentScheme"] = if (dark) "Darcula" else "Default"
+        palette["isDark"] = dark.toString()
         return palette
+    }
+
+    /** True when the WCAG relative luminance of a #rrggbb / rrggbb background is below 0.5. */
+    private fun isDark(hex: String): Boolean {
+        val h = hex.removePrefix("#")
+        fun channel(i: Int): Double {
+            val s = h.substring(i, i + 2).toInt(16) / 255.0
+            return if (s <= 0.03928) s / 12.92 else Math.pow((s + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4) < 0.5
     }
 
     /**
@@ -124,12 +144,12 @@ object ThemeReloader {
 
         // Build colors section from full palette
         val colorsNode = mapper.createObjectNode()
-        palette.forEach { (k, v) -> colorsNode.put(k, v) }
+        palette.filterValues { it.startsWith("#") }.forEach { (k, v) -> colorsNode.put(k, v) }
 
         // Assemble final theme object: mapping fields + injected colors section
         val theme = mapper.createObjectNode().apply {
             put("name",         mapping.get("name").asText())
-            put("dark",         mapping.get("dark").asBoolean())
+            put("dark",         palette.getValue("isDark").toBoolean())
             put("editorScheme", mapping.get("editorScheme").asText())
             set<ObjectNode>("colors", colorsNode)
             set<ObjectNode>("ui",     mapping.get("ui") as ObjectNode)

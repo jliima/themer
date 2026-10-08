@@ -1,7 +1,6 @@
 {
   "name": "Pywal",
   "author": "jliima",
-  "dark": true,
   "editorScheme": "pywal-color-scheme",
   "ui": {
     "*": {
