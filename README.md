@@ -55,8 +55,9 @@ If your dotfiles already contain `.config/themer` (settings, themes, templates),
 stowed from, so it can be cloned anywhere.
 
 Apps that need more than a rendered file have a plugin under `plugins/`: [VS Code](plugins/vscode/README.md) (reloads
-the window when a theme is re-rendered) and [JetBrains IDEs](plugins/jetbrains/README.md) (live reload of running
-IDEs). `install.sh` sets them up; run a plugin's own `install.sh` to rebuild it after a `git pull`.
+the window when a theme is re-rendered), [JetBrains IDEs](plugins/jetbrains/README.md) (live reload of running
+IDEs, fonts) and [Firefox](plugins/firefox/README.md) (default zoom, prefs and a UI font scale, live). `install.sh`
+sets them up; run a plugin's own `install.sh` to rebuild it after a `git pull`.
 
 Restart Firefox and open Qt apps once after the first apply. Konsole uses the "Themer" profile in new windows; Kate
 switches to the "Themer Dark" or "Themer Light" syntax theme.
@@ -110,7 +111,8 @@ color schemes and profiles even before Themer runs there; `themer apply` then do
 | `themer remove ID` | Remove an installed theme. |
 | `themer undo` | Restore the files the last apply changed (15 runs of backups in `~/.local/state/themer/backups`). |
 | `themer stow` | Run the configured stow command (dotfiles mode). |
-| `themer screens [--apply]` | Outputs with their scale; sets the scales listed under `[screens]` in `settings.toml`. |
+| `themer screens [--apply\|--watch]` | Outputs with their scale; sets the scales under `[screens]` and switches the screen profile (see Screens). |
+| `themer profile [NAME\|auto\|none]` | The screen profiles; switch one by hand. |
 
 ## How it fits together
 
@@ -268,6 +270,51 @@ HDMI-A-1 = 1.5
 
 `themer screens` prints the `kscreen-doctor` commands for the outputs that differ; `themer screens --apply` runs
 them. Keep fonts in points; the scale does the rest.
+
+### Screen profiles
+
+When a scale is not what you want (a big 4K screen at 100%, say), a profile changes the sizes instead. A
+`[[profile]]` in `settings.toml` holds overrides, like `[overrides]`, that apply while one of its screens is on:
+
+```toml
+[[profile]]
+name = "32-inch"
+inches = [30, 40]          # an enabled screen with this diagonal; or outputs = ["DP-*"] (connector names)
+
+[profile.overrides.fonts]
+ui-size = 12
+mono-size = 13
+
+[profile.overrides.firefox]
+zoom = 1.2                 # default page zoom (plugins/firefox)
+ui-scale = 1.2             # userChrome.css font sizes (plugins/firefox)
+
+[profile.overrides.jetbrains]
+editor-font-size = 18      # plugins/jetbrains
+```
+
+`themer screens --apply` switches to the first profile that matches (or to none) and re-applies the theme when that
+changed it; `themer screens --watch` does so again after every display hotplug (udev), meant for a user service:
+
+```ini
+# ~/.config/systemd/user/themer-screens.service
+[Unit]
+Description=Themer screen profiles
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/themer screens --watch
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
+```
+
+`themer profile` lists the profiles; `themer profile NAME`, `auto` or `none` switches by hand. The active profile is
+machine state (`~/.local/state/themer/current.json`), so only files outside the dotfiles should depend on it: a
+target with `dotfiles = true` whose template uses an overridden value would change a tracked file on every switch.
+KDE fonts, Firefox (with its plugin) and the JetBrains IDEs follow at once; Konsole uses new sizes in new windows.
 
 ## Development
 

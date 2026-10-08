@@ -68,6 +68,12 @@ line-spacing = 2
 
 [firefox]
 compact = true          # browser.uidensity 1
+zoom = 1.0              # default page zoom, applied live by plugins/firefox
+ui-scale = 1.0          # for userChrome.css font sizes, applied live by plugins/firefox
+
+[jetbrains]
+editor-font-size = 13   # the editor font is fonts.mono
+ui-font-size = 0        # 0: the IDE's own UI font; else fonts.sans at this size
 
 # Roles: what each color is for, as aliases of palette tokens.
 [roles]

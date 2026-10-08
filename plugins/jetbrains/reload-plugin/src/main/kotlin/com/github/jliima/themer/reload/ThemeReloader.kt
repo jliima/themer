@@ -14,8 +14,8 @@ import com.intellij.openapi.util.JDOMUtil
 import java.io.File
 
 /**
- * Applies what `themer apply` rendered: the UI theme JSON from ~/.cache/themer/jetbrains and the editor scheme
- * Themer wrote into this IDE's config folder (colors/Themer.icls). Nothing is computed here; the colors come from
+ * Applies what `themer apply` rendered: the UI theme JSON from ~/.cache/themer/jetbrains, the editor scheme
+ * Themer wrote into this IDE's config folder (colors/Themer.icls) and the fonts (FontReloader). Nothing is computed here; the colors come from
  * the Themer templates in the dotfiles.
  */
 object ThemeReloader {
@@ -36,6 +36,7 @@ object ThemeReloader {
         ApplicationManager.getApplication().invokeAndWait {
             reloadUiTheme()?.let { messages += it }
             reloadEditorScheme()?.let { messages += it }
+            FontReloader.reload()?.let { messages += it }
         }
         messages.joinToString("; ").ifEmpty { "ok" }
     }

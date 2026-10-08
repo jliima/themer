@@ -15,16 +15,19 @@ Python 3.11+ standard library only.
 
 import argparse
 import datetime as _dt
+import fnmatch
 import glob
 import io
 import json
 import math
 import os
 import re
+import select
 import shlex
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
 import zipfile
 from pathlib import Path
@@ -400,10 +403,13 @@ def context(pal, variant):
         if not isinstance(v, dict):
           ctx[f"{section}.{k}"] = v
   # Machine settings win over every theme, e.g. [overrides.kde] decoration-library = "themer".
-  for section, values in settings().get("overrides", {}).items():
-    if isinstance(values, dict):
-      for k, v in values.items():
-        ctx[f"{section}.{k}"] = v
+  # The active screen profile wins over those (see `themer screens`).
+  prof = find_profile(read_state().get("profile")) or {}
+  for overrides in (settings().get("overrides", {}), prof.get("overrides", {})):
+    for section, values in overrides.items():
+      if isinstance(values, dict):
+        for k, v in values.items():
+          ctx[f"{section}.{k}"] = v
   # A widget style can have a dark twin (Kvantum: kvantum-dark loads <theme>Dark); switching the style name is also
   # what makes running KDE apps restyle when the variant changes.
   if variant == "dark" and ctx.get("kde.widget-style-dark"):
@@ -794,6 +800,16 @@ def run_reload(action, ctx, quiet=False):
     if have("dbus-send"):
       sh("dbus-send", "--session", "--type=signal", "/KGlobalSettings", "org.kde.KGlobalSettings.notifyChange",
          "int32:2", "int32:0")
+      # What the Fonts settings page sends: running Qt apps and Plasma re-read the fonts from kdeglobals.
+      sh("dbus-send", "--session", "--type=signal", "/KDEPlatformTheme", "org.kde.KDEPlatformTheme.refreshFonts")
+    if have("gdbus"):
+      # KConfig's change notification, which a plain file write does not send. Plasma's GTK settings module waits for
+      # it to hand the new fonts to GTK apps (and Firefox menus). Key names go as byte arrays (a{saay}).
+      def ay(key):
+        return "[" + ", ".join(f"byte {b:#04x}" for b in key.encode()) + "]"
+      keys = ", ".join(ay(k) for k in ("font", "menuFont", "toolBarFont", "smallestReadableFont", "fixed"))
+      sh("gdbus", "emit", "--session", "--object-path", "/kdeglobals", "--signal",
+         "org.kde.kconfig.notify.ConfigChanged", f"{{'General': [{keys}]}}")
   elif action == "gtk":
     if have("gsettings"):
       sh("gsettings", "set", "org.gnome.desktop.interface", "color-scheme",
@@ -818,9 +834,13 @@ def read_state():
   return {}
 
 
-def write_state(theme, variant):
+def write_state(**values):
+  """Updates the given keys of the state (theme, variant, profile), keeping the others. None removes a key."""
+  state = read_state()
+  state.update(values)
+  state = {k: v for k, v in state.items() if v is not None}
   STATE_DIR.mkdir(parents=True, exist_ok=True)
-  (STATE_DIR / "current.json").write_text(json.dumps({"theme": theme, "variant": variant}) + "\n")
+  (STATE_DIR / "current.json").write_text(json.dumps(state) + "\n")
 
 
 def pick(args, need_variant=True):
@@ -983,7 +1003,7 @@ def cmd_apply(args):
       if not args.dry_run:
         linked = link_missing(stowed) and linked
   if not args.dry_run:
-    write_state(tid, variant)
+    write_state(theme=tid, variant=variant)
     for action in dict.fromkeys(reloads):
       run_reload(action, ctxs[variant])
     prune_backups()
@@ -1410,36 +1430,153 @@ def cmd_stow(args):
   sys.exit(0 if stow(dry_run=args.dry_run) else 1)
 
 
-def cmd_screens(args):
-  """Lists the outputs with their scale and logical size. `[screens]` in settings.toml maps an output name to the
-  scale you want (DP-1 = 1.5); the kscreen-doctor commands for the ones that differ are printed, or run with --apply."""
+def screen_outputs():
+  """The outputs as kscreen-doctor -j reports them."""
   if not shutil.which("kscreen-doctor"):
     die("kscreen-doctor not found; set scales in System Settings > Display Configuration")
   res = subprocess.run(["kscreen-doctor", "-j"], capture_output=True, text=True)
   try:
-    outputs = json.loads(res.stdout)["outputs"]
+    return json.loads(res.stdout)["outputs"]
   except (json.JSONDecodeError, KeyError):
     die("could not read the outputs from kscreen-doctor -j")
+
+
+def diagonal(o):
+  """An output's diagonal in inches, from its physical size; None when the screen does not report one."""
+  mm = o.get("sizeMM") or {}
+  w, h = mm.get("width", 0), mm.get("height", 0)
+  return math.hypot(w, h) / 25.4 if w and h else None
+
+
+def profiles():
+  return [p for p in settings().get("profile", []) if isinstance(p, dict) and p.get("name")]
+
+
+def find_profile(name):
+  return next((p for p in profiles() if p["name"] == name), None) if name else None
+
+
+def profile_matches(prof, o):
+  """True when the output is on and fits the profile's `outputs` (connector name globs) and `inches` ([min, max]
+  diagonal). A profile with neither is only ever chosen by hand."""
+  if not (o.get("connected", True) and o.get("enabled", True)) or not ("outputs" in prof or "inches" in prof):
+    return False
+  if "outputs" in prof and not any(fnmatch.fnmatchcase(o["name"], p) for p in prof["outputs"]):
+    return False
+  if "inches" in prof:
+    d = diagonal(o)
+    if d is None or not prof["inches"][0] <= d <= prof["inches"][1]:
+      return False
+  return True
+
+
+def profile_for(outputs):
+  """The first profile in settings.toml that one of the enabled outputs matches, else None."""
+  return next((p["name"] for p in profiles() if any(profile_matches(p, o) for o in outputs)), None)
+
+
+def set_profile(name):
+  """Makes `name` (None: no profile) the active profile and re-applies the current theme if that changed it."""
+  state = read_state()
+  if state.get("profile") == name:
+    return False
+  print(f"profile {state.get('profile') or 'none'} -> {name or 'none'}")
+  write_state(profile=name)
+  if state.get("theme"):
+    cmd_apply(argparse.Namespace(theme=None, variant=None, only=None, dry_run=False, force=False))
+  return True
+
+
+def screens_step(apply):
+  """Prints the outputs; with apply, sets the scales from [screens] and switches to the matching profile."""
+  outputs = screen_outputs()
   wanted = settings().get("screens", {})
   todo = []
   for o in outputs:
     w, h, cur = o["size"]["width"], o["size"]["height"], float(o.get("scale", 1))
+    d = diagonal(o)
+    size = f'  {d:.0f}"' if d else ""
     state = "" if o.get("enabled", True) else "  (disabled)"
-    print(f"{o['name']:<10} {w}x{h}  scale {cur:g}  logical {round(w / cur)}x{round(h / cur)}{state}")
+    print(f"{o['name']:<10} {w}x{h}{size}  scale {cur:g}  logical {round(w / cur)}x{round(h / cur)}{state}")
     want = wanted.get(o["name"])
-    if want is not None and abs(float(want) - cur) > 1e-6:
+    if want is not None and abs(float(want) - cur) > 1e-6 and o.get("enabled", True):
       todo.append((o["name"], float(want)))
-  if not wanted:
-    print("\nSet the scale you want per output in settings.toml, then run this again:\n\n  [screens]\n  DP-1 = 1.5")
   for name, scale in todo:
     cmd = ["kscreen-doctor", f"output.{name}.scale.{scale:g}"]
-    if args.apply:
-      print(f"\n$ {' '.join(cmd)}")
+    if apply:
+      print(f"$ {' '.join(cmd)}")
       subprocess.run(cmd, stderr=subprocess.DEVNULL)
     else:
       print(f"\n  {' '.join(cmd)}")
-  if todo and not args.apply:
-    print("\n--apply runs these.")
+  match = profile_for(outputs)
+  if profiles():
+    print(f"profile    {match or 'none'} (active: {read_state().get('profile') or 'none'})")
+  if apply:
+    set_profile(match)
+  return todo, match
+
+
+def cmd_screens(args):
+  """Lists the outputs with their scale and logical size. `[screens]` in settings.toml maps an output name to the
+  scale you want (DP-1 = 1.5); the kscreen-doctor commands for the ones that differ are printed, or run with --apply.
+  `[[profile]]` tables pick overrides by the screens that are on; --apply switches to the matching one, --watch does
+  that again after every display hotplug."""
+  if args.watch:
+    watch_screens()
+    return
+  todo, match = screens_step(args.apply)
+  if not settings().get("screens") and not profiles():
+    print("\nSet the scale you want per output in settings.toml, then run this again:\n\n  [screens]\n  DP-1 = 1.5")
+  if (todo or match != read_state().get("profile")) and not args.apply:
+    print("\n--apply runs these and switches the profile.")
+
+
+def watch_screens():
+  """Runs the screens step now and again after display hotplugs (udev drm events), until stopped. Each burst of events
+  is handled twice, 2 s after the last event and again 8 s later, since KWin turns new outputs on with a delay."""
+  global _SETTINGS
+  if not shutil.which("udevadm"):
+    die("udevadm not found")
+  mon = subprocess.Popen(["udevadm", "monitor", "--udev", "--subsystem-match=drm"], stdout=subprocess.PIPE)
+  fd = mon.stdout.fileno()
+  due = [0.0]
+  while True:
+    timeout = max(0.0, min(due) - time.monotonic()) if due else None
+    ready, _, _ = select.select([fd], [], [], timeout)
+    if ready:
+      if not os.read(fd, 65536):
+        die("udevadm monitor stopped")
+      now = time.monotonic()
+      due = [now + 2, now + 10]
+      continue
+    due.pop(0)
+    _SETTINGS = None
+    try:
+      screens_step(apply=True)
+    except SystemExit as e:
+      print(e, file=sys.stderr)
+    sys.stdout.flush()
+
+
+def cmd_profile(args):
+  """Shows the screen profiles, or switches to one by hand: a name, `auto` (the one the screens match) or `none`."""
+  if args.name is None:
+    active = read_state().get("profile")
+    for p in profiles():
+      when = ", ".join(filter(None, (" ".join(p.get("outputs", [])),
+                                     "{}-{} inches".format(*p["inches"]) if "inches" in p else "")))
+      print(f"{'*' if p['name'] == active else ' '} {p['name']:<14} {when or 'by hand only'}")
+    if not profiles():
+      print("no [[profile]] tables in settings.toml")
+    return
+  if args.name == "auto":
+    screens_step(apply=True)
+    return
+  name = None if args.name == "none" else args.name
+  if name and not find_profile(name):
+    die(f"no profile {name} in settings.toml; there are: {', '.join(p['name'] for p in profiles()) or 'none'}")
+  if not set_profile(name):
+    print(f"profile {name or 'none'} is already active")
 
 
 def cmd_doctor(args):
@@ -1567,8 +1704,14 @@ def main():
   p.set_defaults(fn=cmd_stow)
 
   p = sub.add_parser("screens", help="outputs and their scale; sets the ones listed under [screens] in settings.toml")
-  p.add_argument("--apply", action="store_true", help="run the kscreen-doctor commands instead of printing them")
+  p.add_argument("--apply", action="store_true",
+                 help="run the kscreen-doctor commands instead of printing them, switch to the matching profile")
+  p.add_argument("--watch", action="store_true", help="--apply now and after every display hotplug, until stopped")
   p.set_defaults(fn=cmd_screens)
+
+  p = sub.add_parser("profile", help="list the screen profiles, or switch: themer profile NAME|auto|none")
+  p.add_argument("name", nargs="?")
+  p.set_defaults(fn=cmd_profile)
 
   p = sub.add_parser("doctor", help="check what Themer needs")
   theme_opts(p, variant=False)

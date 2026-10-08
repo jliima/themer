@@ -188,6 +188,14 @@ template = "firefox/user.js"
 output = "{firefox}/user.js"
 mode = "ensure-lines"
 
+# Settings the Firefox plugin (plugins/firefox) applies to every profile while Firefox runs: default zoom, prefs and
+# a UI scale for userChrome.css. Firefox picks up a change within a few seconds, no restart.
+[[target]]
+name = "Firefox live settings"
+group = "firefox"
+template = "firefox/live.json"
+output = "~/.cache/themer/firefox/live.json"
+
 # ---- JetBrains IDEs --------------------------------------------------------------------------------------------------
 
 # Every installed IDE version gets the editor scheme "Themer" and a small theme plugin ("Themer", UI colors). A
@@ -212,6 +220,14 @@ name = "JetBrains UI theme"
 group = "jetbrains"
 template = "jetbrains/plugin/theme/themer.theme.json"
 output = "~/.cache/themer/jetbrains/themer.theme.json"
+reload = "PATH=$HOME/.local/bin:$PATH; command -v jetbrains-themer-apply >/dev/null && jetbrains-themer-apply"
+
+# Editor and UI fonts, which the reload plugin applies at IDE start and on every reload.
+[[target]]
+name = "JetBrains fonts"
+group = "jetbrains"
+template = "jetbrains/fonts.properties"
+output = "~/.cache/themer/jetbrains/fonts.properties"
 reload = "PATH=$HOME/.local/bin:$PATH; command -v jetbrains-themer-apply >/dev/null && jetbrains-themer-apply"
 
 # ---- VS Code ---------------------------------------------------------------------------------------------------------

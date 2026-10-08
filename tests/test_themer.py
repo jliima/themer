@@ -46,6 +46,34 @@ class ColorsAndTemplates(unittest.TestCase):
     self.assertEqual(themer.render("{{ scheme }} {{ variant }}", ctx), "EmberDark dark")
 
 
+class ScreenProfiles(unittest.TestCase):
+  def setUp(self):
+    self.saved = themer._SETTINGS
+    themer._SETTINGS = {"profile": [
+      {"name": "big", "inches": [30, 40], "overrides": {"fonts": {"ui-size": 12}}},
+      {"name": "dock", "outputs": ["DP-*"]},
+      {"name": "manual"},
+    ]}
+
+  def tearDown(self):
+    themer._SETTINGS = self.saved
+
+  @staticmethod
+  def output(name, mm, enabled=True):
+    return {"name": name, "enabled": enabled, "connected": True, "sizeMM": {"width": mm[0], "height": mm[1]}}
+
+  def test_first_matching_profile_wins(self):
+    laptop = self.output("eDP-1", (302, 188))
+    big = self.output("DP-8", (698, 393))
+    self.assertIsNone(themer.profile_for([laptop]))
+    self.assertEqual(themer.profile_for([laptop, big]), "big")
+    self.assertEqual(themer.profile_for([self.output("DP-1", (597, 336))]), "dock")
+
+  def test_disabled_screens_and_manual_profiles_never_match(self):
+    self.assertIsNone(themer.profile_for([self.output("HDMI-A-1", (698, 393), enabled=False)]))
+    self.assertFalse(themer.profile_matches({"name": "manual"}, self.output("DP-1", (698, 393))))
+
+
 class Commands(unittest.TestCase):
   def setUp(self):
     self.tmp = tempfile.TemporaryDirectory()
