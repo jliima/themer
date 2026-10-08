@@ -193,7 +193,7 @@ mode = "ensure-lines"
 
 # ---- VS Code ---------------------------------------------------------------------------------------------------------
 
-# The dark and light theme ("Themer Dark" and "Themer Light") of the Themer extension (vscode/install.sh), which
+# The dark and light theme ("Themer Dark" and "Themer Light") of the Themer extension (plugins/vscode/install.sh), which
 # reloads the window when a theme is re-rendered: VS Code reads a theme file only once. With
 # window.autoDetectColorScheme VS Code follows the desktop mode, so a dark/light switch needs no reload at all.
 [[target]]

@@ -49,7 +49,7 @@ If your dotfiles already contain `.config/themer` (settings, themes, templates),
 `./install.sh --dotfiles <dotfiles>`; the dotfiles folder is found from where `~/.config/themer/settings.toml` is
 stowed from, so it can be cloned anywhere.
 
-For VS Code, run `vscode/install.sh` once (see [vscode/README.md](vscode/README.md)).
+For VS Code, run `plugins/vscode/install.sh` once (see [plugins/vscode/README.md](plugins/vscode/README.md)).
 
 Restart Firefox and open Qt apps once after the first apply. Konsole uses the "Themer" profile in new windows; Kate
 switches to the "Themer Dark" or "Themer Light" syntax theme.
@@ -257,7 +257,7 @@ the same palette with `wal --theme ~/.config/wal/colorschemes/dark/my-theme.json
 | Kate, KWrite | `Themer-Dark.theme`, `Themer-Light.theme`, `katerc` (merged) | Kate is switched to the Themer theme of the applied variant. |
 | GTK 4 | `~/.config/gtk-4.0/themer.css`, an import line in `gtk.css` | libadwaita accent, header bars, sidebars, cards. |
 | Firefox | `<profile>/chrome/themer-colors.css`, `userChrome.css`, `userContent.css`, lines in `user.js` | Enables userChrome loading, compact density, websites follow the variant. Snippets are appended to the css files. |
-| VS Code | `~/.vscode/extensions/jliima.themer-*/themes/themer-{dark,light}.json` | Needs the extension in [vscode/](vscode/README.md), which reloads the window when a theme is re-rendered. |
+| VS Code | `~/.vscode/extensions/jliima.themer-*/themes/themer-{dark,light}.json` | Needs the extension in [plugins/vscode/](plugins/vscode/README.md), which reloads the window when a theme is re-rendered. |
 
 Files marked dotfiles in the table above (color schemes, Konsole, Kate, GTK css) go through your dotfiles folder when
 dotfiles mode is on. Merged files keep every key Themer does not set. Every overwritten file is backed up first;
